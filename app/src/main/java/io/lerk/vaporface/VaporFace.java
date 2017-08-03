@@ -16,11 +16,14 @@
 
 package io.lerk.vaporface;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -45,8 +48,6 @@ import java.util.concurrent.TimeUnit;
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
 public class VaporFace extends CanvasWatchFaceService {
-    private static final Typeface NORMAL_TYPEFACE =
-            Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
     /**
      * Update rate in milliseconds for interactive mode. We update once a second since seconds are
@@ -58,6 +59,7 @@ public class VaporFace extends CanvasWatchFaceService {
      * Handler message id for updating the time periodically in interactive mode.
      */
     private static final int MSG_UPDATE_TIME = 0;
+    private Typeface VAPOR_FONT;
 
     @Override
     public Engine onCreateEngine() {
@@ -87,25 +89,37 @@ public class VaporFace extends CanvasWatchFaceService {
     private class Engine extends CanvasWatchFaceService.Engine {
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
-        Paint mBackgroundPaint;
-        Paint mTextPaint;
-        boolean mAmbient;
-        Calendar mCalendar;
-        final BroadcastReceiver mTimeZoneReceiver = new BroadcastReceiver() {
+
+        Paint textPaint;
+        boolean ambient;
+        Calendar cal;
+        Bitmap bg;
+        final BroadcastReceiver timeZoneReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                mCalendar.setTimeZone(TimeZone.getDefault());
+                cal.setTimeZone(TimeZone.getDefault());
                 invalidate();
             }
         };
-        float mXOffset;
         float mYOffset;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
          * disable anti-aliasing in ambient mode.
          */
-        boolean mLowBitAmbient;
+        boolean lowBitAmbient;
+        private boolean isRound;
+
+        @Override
+        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            super.onSurfaceChanged(holder, format, width, height);
+            float scale = ((float) width) / (float) bg.getWidth();
+            bg = Bitmap.createScaledBitmap(
+                    bg,
+                    (int) (bg.getWidth() * scale),
+                    (int) (bg.getHeight() * scale),
+                    true);
+        }
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -117,16 +131,17 @@ public class VaporFace extends CanvasWatchFaceService {
                     .setShowSystemUiTime(false)
                     .setAcceptsTapEvents(true)
                     .build());
+
             Resources resources = VaporFace.this.getResources();
             mYOffset = resources.getDimension(R.dimen.digital_y_offset);
 
-            mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(resources.getColor(R.color.background));
+            bg = BitmapFactory.decodeResource(resources, R.drawable.vaporwave_grid);
 
-            mTextPaint = new Paint();
-            mTextPaint = createTextPaint(resources.getColor(R.color.digital_text));
+            VAPOR_FONT = Typeface.createFromAsset(getAssets(), "Monomod.ttf");
 
-            mCalendar = Calendar.getInstance();
+            textPaint = createTextPaint(resources.getColor(R.color.digital_text));
+
+            cal = Calendar.getInstance();
         }
 
         @Override
@@ -138,8 +153,9 @@ public class VaporFace extends CanvasWatchFaceService {
         private Paint createTextPaint(int textColor) {
             Paint paint = new Paint();
             paint.setColor(textColor);
-            paint.setTypeface(NORMAL_TYPEFACE);
+            paint.setTypeface(VAPOR_FONT);
             paint.setAntiAlias(true);
+            paint.setLetterSpacing(-0.08F);
             return paint;
         }
 
@@ -151,7 +167,7 @@ public class VaporFace extends CanvasWatchFaceService {
                 registerReceiver();
 
                 // Update time zone in case it changed while we weren't visible.
-                mCalendar.setTimeZone(TimeZone.getDefault());
+                cal.setTimeZone(TimeZone.getDefault());
                 invalidate();
             } else {
                 unregisterReceiver();
@@ -168,7 +184,7 @@ public class VaporFace extends CanvasWatchFaceService {
             }
             mRegisteredTimeZoneReceiver = true;
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
-            VaporFace.this.registerReceiver(mTimeZoneReceiver, filter);
+            VaporFace.this.registerReceiver(timeZoneReceiver, filter);
         }
 
         private void unregisterReceiver() {
@@ -176,7 +192,7 @@ public class VaporFace extends CanvasWatchFaceService {
                 return;
             }
             mRegisteredTimeZoneReceiver = false;
-            VaporFace.this.unregisterReceiver(mTimeZoneReceiver);
+            VaporFace.this.unregisterReceiver(timeZoneReceiver);
         }
 
         @Override
@@ -185,19 +201,24 @@ public class VaporFace extends CanvasWatchFaceService {
 
             // Load resources that have alternate values for round watches.
             Resources resources = VaporFace.this.getResources();
-            boolean isRound = insets.isRound();
-            mXOffset = resources.getDimension(isRound
-                    ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
-            float textSize = resources.getDimension(isRound
-                    ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
+            isRound = insets.isRound();
+            float textSize = resources.getDimension(isRound ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
 
-            mTextPaint.setTextSize(textSize);
+            textPaint.setTextSize(textSize);
+        }
+
+        private float calculateOffset(Resources resources, boolean isRound, boolean isAmbient) {
+            if (isAmbient) {
+                return resources.getDimension(isRound ? R.dimen.digital_x_offset_round_ambient : R.dimen.digital_x_offset_ambient);
+            } else {
+                return resources.getDimension(isRound ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
+            }
         }
 
         @Override
         public void onPropertiesChanged(Bundle properties) {
             super.onPropertiesChanged(properties);
-            mLowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
+            lowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
         }
 
         @Override
@@ -209,10 +230,10 @@ public class VaporFace extends CanvasWatchFaceService {
         @Override
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
-            if (mAmbient != inAmbientMode) {
-                mAmbient = inAmbientMode;
-                if (mLowBitAmbient) {
-                    mTextPaint.setAntiAlias(!inAmbientMode);
+            if (ambient != inAmbientMode) {
+                ambient = inAmbientMode;
+                if (lowBitAmbient) {
+                    textPaint.setAntiAlias(!inAmbientMode);
                 }
                 invalidate();
             }
@@ -251,19 +272,20 @@ public class VaporFace extends CanvasWatchFaceService {
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
             } else {
-                canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
+                canvas.drawBitmap(bg, 0F, 0F, null);
             }
 
             // Draw H:MM in ambient mode or H:MM:SS in interactive mode.
             long now = System.currentTimeMillis();
-            mCalendar.setTimeInMillis(now);
+            cal.setTimeInMillis(now);
 
-            String text = mAmbient
-                    ? String.format("%d:%02d", mCalendar.get(Calendar.HOUR),
-                    mCalendar.get(Calendar.MINUTE))
-                    : String.format("%d:%02d:%02d", mCalendar.get(Calendar.HOUR),
-                    mCalendar.get(Calendar.MINUTE), mCalendar.get(Calendar.SECOND));
-            canvas.drawText(text, mXOffset, mYOffset, mTextPaint);
+            @SuppressLint("DefaultLocale") //FIXME evaluate if this is really not important
+                    String text = ambient
+                    ? String.format("%d:%02d", cal.get(Calendar.HOUR),
+                    cal.get(Calendar.MINUTE))
+                    : String.format("%d:%02d:%02d", cal.get(Calendar.HOUR),
+                    cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+            canvas.drawText(text, calculateOffset(VaporFace.this.getResources(), isRound, ambient), mYOffset, textPaint);
         }
 
         /**
