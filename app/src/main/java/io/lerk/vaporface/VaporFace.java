@@ -34,6 +34,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 import android.widget.Toast;
@@ -101,8 +102,6 @@ public class VaporFace extends CanvasWatchFaceService {
                 invalidate();
             }
         };
-        private float textOffsetY;
-        private float textOffsetX;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -110,8 +109,7 @@ public class VaporFace extends CanvasWatchFaceService {
          */
         private boolean lowBitAmbient;
         private boolean isRound;
-        private int width;
-        private int height;
+        private Paint ambientTextPaint;
 
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -136,13 +134,15 @@ public class VaporFace extends CanvasWatchFaceService {
                     .build());
 
             Resources resources = VaporFace.this.getResources();
-            textOffsetY = resources.getDimension(R.dimen.digital_y_offset);
 
             bg = BitmapFactory.decodeResource(resources, R.drawable.vaporwave_grid);
 
             VAPOR_FONT = Typeface.createFromAsset(getAssets(), "Monomod.ttf");
 
             textPaint = createTextPaint(resources.getColor(R.color.digital_text));
+            ambientTextPaint = createTextPaint(resources.getColor(R.color.ambient_mode_text_secondary));
+            ambientTextPaint.setTextSize(48F);
+            ambientTextPaint.setAntiAlias(lowBitAmbient);
 
             cal = Calendar.getInstance();
         }
@@ -266,6 +266,7 @@ public class VaporFace extends CanvasWatchFaceService {
             // Draw the background.
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
+                drawAesthetic(canvas);
             } else {
                 canvas.drawBitmap(bg, 0F, 0F, null);
             }
@@ -285,8 +286,25 @@ public class VaporFace extends CanvasWatchFaceService {
         }
 
         /**
+         * Text that gets drawn in ambient mode
+         * @param canvas
+         */
+        private void drawAesthetic(Canvas canvas) {
+            canvas.save();
+            canvas.rotate(45f);
+            Rect bounds = new Rect();
+            String text = "aesthetic";
+            ambientTextPaint.getTextBounds(text, 0, text.length(), bounds);
+            int x = (canvas.getWidth() / 2) - (bounds.width() / 3);
+            int y = bounds.height() * 2;
+            canvas.drawText(text, x, y, ambientTextPaint);
+            canvas.restore();
+        }
+
+        /**
          * From: https://stackoverflow.com/a/20900551/1979736
-          * @param canvas
+         *
+         * @param canvas
          * @param paint
          * @param text
          */
