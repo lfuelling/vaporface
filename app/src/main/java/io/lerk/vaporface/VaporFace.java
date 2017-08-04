@@ -17,7 +17,9 @@
 package io.lerk.vaporface;
 
 import android.annotation.SuppressLint;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -32,12 +34,15 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.wearable.complications.ComplicationData;
+import android.support.wearable.complications.ComplicationHelperActivity;
+import android.support.wearable.complications.rendering.ComplicationDrawable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
-import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
@@ -49,6 +54,20 @@ import java.util.concurrent.TimeUnit;
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
 public class VaporFace extends CanvasWatchFaceService {
+
+    private static final int BOTTOM_COMPLICATION_ID = 0;
+
+    public static final int[] COMPLICATION_IDS = {BOTTOM_COMPLICATION_ID};
+
+    // Left and right dial supported types.
+    public static final int[][] COMPLICATION_SUPPORTED_TYPES = {
+            {
+                    ComplicationData.TYPE_RANGED_VALUE,
+                    ComplicationData.TYPE_ICON,
+                    ComplicationData.TYPE_SHORT_TEXT,
+                    ComplicationData.TYPE_SMALL_IMAGE
+            }
+    };
 
     /**
      * Update rate in milliseconds for interactive mode. We update once a second since seconds are
@@ -87,9 +106,41 @@ public class VaporFace extends CanvasWatchFaceService {
         }
     }
 
+    static int getComplicationId(
+            VaporFaceConfigActivity.ComplicationLocation complicationLocation) {
+        // Add any other supported locations here you would like to support. In our case, we are
+        // only supporting a left and right complication.
+        switch (complicationLocation) {
+            case BOTTOM:
+                return BOTTOM_COMPLICATION_ID;
+            default:
+                return -1;
+        }
+    }
+
+    static int[] getComplicationIds() {
+        return COMPLICATION_IDS;
+    }
+
+    static int[] getSupportedComplicationTypes(
+            VaporFaceConfigActivity.ComplicationLocation complicationLocation) {
+        // Add any other supported locations here.
+        switch (complicationLocation) {
+            case BOTTOM:
+                return COMPLICATION_SUPPORTED_TYPES[0];
+            default:
+                return new int[]{};
+        }
+    }
+
     private class Engine extends CanvasWatchFaceService.Engine {
+        private final String TAG = Engine.class.getCanonicalName();
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
+
+        private Paint complicationPaint;
+        private SparseArray<ComplicationData> complicationDataSparseArray;
+        private SparseArray<ComplicationDrawable> complicationDrawableSparseArray;
 
         Paint textPaint;
         boolean ambient;
@@ -108,6 +159,7 @@ public class VaporFace extends CanvasWatchFaceService {
          * disable anti-aliasing in ambient mode.
          */
         private boolean lowBitAmbient;
+        private boolean burnInProtection;
         private boolean isRound;
         private Paint ambientTextPaint;
 
@@ -120,6 +172,25 @@ public class VaporFace extends CanvasWatchFaceService {
                     (int) (bg.getWidth() * scale),
                     (int) (bg.getHeight() * scale),
                     true);
+
+            // For most Wear devices, width and height are the same, so we just chose one (width).
+            int sizeOfComplication = width / 4;
+            int midpointOfScreen = width / 2;
+
+            int horizontalOffset = midpointOfScreen - (sizeOfComplication /2);
+            int verticalOffset = height - (sizeOfComplication + 18);
+
+            Rect bottomBounds =
+                    // Left, Top, Right, Bottom
+                    new Rect(
+                            horizontalOffset,
+                            verticalOffset,
+                            (horizontalOffset + sizeOfComplication),
+                            (verticalOffset + sizeOfComplication));
+
+            ComplicationDrawable bottomComplicationDrawable = complicationDrawableSparseArray.get(BOTTOM_COMPLICATION_ID);
+            bottomComplicationDrawable.setBounds(bottomBounds);
+
         }
 
         @Override
@@ -144,7 +215,112 @@ public class VaporFace extends CanvasWatchFaceService {
             ambientTextPaint.setTextSize(48F);
             ambientTextPaint.setAntiAlias(lowBitAmbient);
 
+            initComplications();
+
             cal = Calendar.getInstance();
+        }
+
+        private void initComplications() {
+            complicationDataSparseArray = new SparseArray<>(COMPLICATION_IDS.length);
+
+            complicationPaint = new Paint();
+            complicationPaint.setColor(Color.WHITE);
+            complicationPaint.setTextSize(18F);
+            complicationPaint.setTypeface(VAPOR_FONT);
+
+            ComplicationDrawable bottomComplicationDrawable = (ComplicationDrawable) getDrawable(R.drawable.custom_complication_styles);
+
+            bottomComplicationDrawable.setContext(getApplicationContext());
+
+            complicationDrawableSparseArray = new SparseArray<>(COMPLICATION_IDS.length);
+            complicationDrawableSparseArray.put(BOTTOM_COMPLICATION_ID, bottomComplicationDrawable);
+
+            setActiveComplications(COMPLICATION_IDS);
+        }
+
+        @Override
+        public void onComplicationDataUpdate(int complicationId, ComplicationData complicationData) {
+            // Adds/updates active complication data in the array.
+            complicationDataSparseArray.put(complicationId, complicationData);
+
+            // Updates correct ComplicationDrawable with updated data.
+            ComplicationDrawable complicationDrawable =
+                    complicationDrawableSparseArray.get(complicationId);
+            complicationDrawable.setComplicationData(complicationData);
+
+            invalidate();
+        }
+
+
+        /*
+         * Determines if tap inside a complication area or returns -1.
+         */
+        private int getTappedComplicationId(int x, int y) {
+
+            int complicationId;
+            ComplicationData complicationData;
+            ComplicationDrawable complicationDrawable;
+
+            long currentTimeMillis = System.currentTimeMillis();
+
+            for (int i = 0; i < COMPLICATION_IDS.length; i++) {
+                complicationId = COMPLICATION_IDS[i];
+                complicationData = complicationDataSparseArray.get(complicationId);
+
+                if ((complicationData != null)
+                        && (complicationData.isActive(currentTimeMillis))
+                        && (complicationData.getType() != ComplicationData.TYPE_NOT_CONFIGURED)
+                        && (complicationData.getType() != ComplicationData.TYPE_EMPTY)) {
+
+                    complicationDrawable = complicationDrawableSparseArray.get(complicationId);
+                    Rect complicationBoundingRect = complicationDrawable.getBounds();
+
+                    if (complicationBoundingRect.width() > 0) {
+                        if (complicationBoundingRect.contains(x, y)) {
+                            return complicationId;
+                        }
+                    } else {
+                        Log.e(TAG, "Not a recognized complication id.");
+                    }
+                }
+            }
+            return -1;
+        }
+
+        // Fires PendingIntent associated with complication (if it has one).
+        private void onComplicationTap(int complicationId) {
+            Log.d(TAG, "onComplicationTap()");
+
+            ComplicationData complicationData =
+                    complicationDataSparseArray.get(complicationId);
+
+            if (complicationData != null) {
+
+                if (complicationData.getTapAction() != null) {
+                    try {
+                        complicationData.getTapAction().send();
+                    } catch (PendingIntent.CanceledException e) {
+                        Log.e(TAG, "onComplicationTap() tap action error: " + e);
+                    }
+
+                } else if (complicationData.getType() == ComplicationData.TYPE_NO_PERMISSION) {
+
+                    // Watch face does not have permission to receive complication data, so launch
+                    // permission request.
+                    ComponentName componentName =
+                            new ComponentName(
+                                    getApplicationContext(), VaporFace.class);
+
+                    Intent permissionRequestIntent =
+                            ComplicationHelperActivity.createPermissionRequestHelperIntent(
+                                    getApplicationContext(), componentName);
+
+                    startActivity(permissionRequestIntent);
+                }
+
+            } else {
+                Log.d(TAG, "No PendingIntent for complication " + complicationId + ".");
+            }
         }
 
         @Override
@@ -214,7 +390,21 @@ public class VaporFace extends CanvasWatchFaceService {
         public void onPropertiesChanged(Bundle properties) {
             super.onPropertiesChanged(properties);
             lowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
+            burnInProtection = properties.getBoolean(PROPERTY_BURN_IN_PROTECTION, false);
+
+            ComplicationDrawable complicationDrawable;
+
+            for (int i = 0; i < COMPLICATION_IDS.length; i++) {
+                complicationDrawable = complicationDrawableSparseArray.get(COMPLICATION_IDS[i]);
+
+                if(complicationDrawable != null) {
+                    complicationDrawable.setLowBitAmbient(lowBitAmbient);
+                    complicationDrawable.setBurnInProtection(burnInProtection);
+                }
+            }
         }
+
+
 
         @Override
         public void onTimeTick() {
@@ -229,6 +419,14 @@ public class VaporFace extends CanvasWatchFaceService {
                 ambient = inAmbientMode;
                 if (lowBitAmbient) {
                     textPaint.setAntiAlias(!inAmbientMode);
+                    complicationPaint.setAntiAlias(!isInAmbientMode());
+                }
+
+                ComplicationDrawable complicationDrawable;
+
+                for (int i = 0; i < COMPLICATION_IDS.length; i++) {
+                    complicationDrawable = complicationDrawableSparseArray.get(COMPLICATION_IDS[i]);
+                    complicationDrawable.setInAmbientMode(inAmbientMode);
                 }
                 invalidate();
             }
@@ -252,10 +450,10 @@ public class VaporFace extends CanvasWatchFaceService {
                     // The user has started a different gesture or otherwise cancelled the tap.
                     break;
                 case TAP_TYPE_TAP:
-                    // The user has completed the tap gesture.
-                    // TODO: Add code to handle the tap gesture.
-                    Toast.makeText(getApplicationContext(), R.string.message, Toast.LENGTH_SHORT)
-                            .show();
+                    int tappedComplicationId = getTappedComplicationId(x, y);
+                    if (tappedComplicationId != -1) {
+                        onComplicationTap(tappedComplicationId);
+                    }
                     break;
             }
             invalidate();
@@ -283,10 +481,24 @@ public class VaporFace extends CanvasWatchFaceService {
                     cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
 
             drawText(canvas, textPaint, text);
+
+            drawComplications(canvas, now);
+        }
+
+        private void drawComplications(Canvas canvas, long currentTimeMillis) {
+            int complicationId;
+            ComplicationDrawable complicationDrawable;
+
+            for (int i = 0; i < COMPLICATION_IDS.length; i++) {
+                complicationId = COMPLICATION_IDS[i];
+                complicationDrawable = complicationDrawableSparseArray.get(complicationId);
+                complicationDrawable.draw(canvas, currentTimeMillis);
+            }
         }
 
         /**
          * Text that gets drawn in ambient mode
+         *
          * @param canvas
          */
         private void drawAesthetic(Canvas canvas) {
@@ -312,7 +524,7 @@ public class VaporFace extends CanvasWatchFaceService {
             Rect bounds = new Rect();
             paint.getTextBounds(text, 0, text.length(), bounds);
             int x = (canvas.getWidth() / 2) - (bounds.width() / 2);
-            int y = (canvas.getHeight() / 2) - (bounds.height() / 2);
+            int y = (canvas.getHeight() / 2) - (bounds.height() / 2) - 32;
             canvas.drawText(text, x, y, paint);
         }
 
