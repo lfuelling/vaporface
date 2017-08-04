@@ -101,14 +101,17 @@ public class VaporFace extends CanvasWatchFaceService {
                 invalidate();
             }
         };
-        float mYOffset;
+        private float textOffsetY;
+        private float textOffsetX;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
          * disable anti-aliasing in ambient mode.
          */
-        boolean lowBitAmbient;
+        private boolean lowBitAmbient;
         private boolean isRound;
+        private int width;
+        private int height;
 
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -133,7 +136,7 @@ public class VaporFace extends CanvasWatchFaceService {
                     .build());
 
             Resources resources = VaporFace.this.getResources();
-            mYOffset = resources.getDimension(R.dimen.digital_y_offset);
+            textOffsetY = resources.getDimension(R.dimen.digital_y_offset);
 
             bg = BitmapFactory.decodeResource(resources, R.drawable.vaporwave_grid);
 
@@ -207,14 +210,6 @@ public class VaporFace extends CanvasWatchFaceService {
             textPaint.setTextSize(textSize);
         }
 
-        private float calculateOffset(Resources resources, boolean isRound, boolean isAmbient) {
-            if (isAmbient) {
-                return resources.getDimension(isRound ? R.dimen.digital_x_offset_round_ambient : R.dimen.digital_x_offset_ambient);
-            } else {
-                return resources.getDimension(isRound ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
-            }
-        }
-
         @Override
         public void onPropertiesChanged(Bundle properties) {
             super.onPropertiesChanged(properties);
@@ -285,7 +280,22 @@ public class VaporFace extends CanvasWatchFaceService {
                     cal.get(Calendar.MINUTE))
                     : String.format("%d:%02d:%02d", cal.get(Calendar.HOUR),
                     cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
-            canvas.drawText(text, calculateOffset(VaporFace.this.getResources(), isRound, ambient), mYOffset, textPaint);
+
+            drawText(canvas, textPaint, text);
+        }
+
+        /**
+         * From: https://stackoverflow.com/a/20900551/1979736
+          * @param canvas
+         * @param paint
+         * @param text
+         */
+        public void drawText(Canvas canvas, Paint paint, String text) {
+            Rect bounds = new Rect();
+            paint.getTextBounds(text, 0, text.length(), bounds);
+            int x = (canvas.getWidth() / 2) - (bounds.width() / 2);
+            int y = (canvas.getHeight() / 2) - (bounds.height() / 2);
+            canvas.drawText(text, x, y, paint);
         }
 
         /**
