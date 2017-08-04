@@ -3,5 +3,6 @@
     <color name="background">#000000</color>
     <color name="digital_text">#ffffff</color>
     <color name="ambient_mode_text_secondary">#080808</color>
-
+    <color name="complication_value_secondary">#7b1fa2</color>
+    <color name="grey">#e1e1e1</color>
 </resources>

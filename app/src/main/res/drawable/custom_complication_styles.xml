@@ -29,7 +29,7 @@
     app:iconColor="@color/white"
     app:rangedValuePrimaryColor="@color/white"
     app:rangedValueRingWidth="1dp"
-    app:rangedValueSecondaryColor="@color/white"
+    app:rangedValueSecondaryColor="@color/complication_value_secondary"
     app:textColor="@color/white"
     app:textSize="12sp"
     app:textTypeface="sans-serif-condensed"
@@ -43,5 +43,5 @@
         app:rangedValuePrimaryColor="@color/white"
         app:titleColor="@color/white"
         app:borderColor="@android:color/transparent"
-        app:rangedValueSecondaryColor="@android:color/transparent"/>
+        app:rangedValueSecondaryColor="@color/complication_value_secondary"/>
 </drawable>
