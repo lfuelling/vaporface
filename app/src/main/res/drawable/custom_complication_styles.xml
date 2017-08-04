@@ -19,7 +19,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     class="android.support.wearable.complications.rendering.ComplicationDrawable"
     app:backgroundColor="@android:color/transparent"
-    app:borderColor="@color/complication_value_secondary"
+    app:borderColor="@color/grid_stripe"
     app:borderDashGap="4dp"
     app:borderDashWidth="1dp"
     app:borderRadius="50dp"
@@ -29,7 +29,7 @@
     app:iconColor="@color/white"
     app:rangedValuePrimaryColor="@color/white"
     app:rangedValueRingWidth="1dp"
-    app:rangedValueSecondaryColor="@color/complication_value_secondary"
+    app:rangedValueSecondaryColor="@color/grid_pink"
     app:textColor="@color/white"
     app:textSize="12sp"
     app:textTypeface="sans-serif-condensed"
@@ -43,5 +43,5 @@
         app:rangedValuePrimaryColor="@color/white"
         app:titleColor="@color/white"
         app:borderColor="@android:color/transparent"
-        app:rangedValueSecondaryColor="@color/complication_value_secondary"/>
+        app:rangedValueSecondaryColor="@color/grid_pink"/>
 </drawable>

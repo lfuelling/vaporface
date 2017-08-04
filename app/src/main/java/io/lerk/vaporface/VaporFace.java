@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2017 The Android Open Source Project (Only boilerplate code)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 public class VaporFace extends CanvasWatchFaceService {
 
     private static final int BOTTOM_COMPLICATION_ID = 0;
+
 
     public static final int[] COMPLICATION_IDS = {BOTTOM_COMPLICATION_ID};
 
@@ -182,8 +183,7 @@ public class VaporFace extends CanvasWatchFaceService {
 
             Rect bottomBounds =
                     // Left, Top, Right, Bottom
-                    new Rect(
-                            horizontalOffset,
+                    new Rect(horizontalOffset,
                             verticalOffset,
                             (horizontalOffset + sizeOfComplication),
                             (verticalOffset + sizeOfComplication));
@@ -229,11 +229,12 @@ public class VaporFace extends CanvasWatchFaceService {
             complicationPaint.setTypeface(VAPOR_FONT);
 
             ComplicationDrawable bottomComplicationDrawable = (ComplicationDrawable) getDrawable(R.drawable.custom_complication_styles);
-
             bottomComplicationDrawable.setContext(getApplicationContext());
+
 
             complicationDrawableSparseArray = new SparseArray<>(COMPLICATION_IDS.length);
             complicationDrawableSparseArray.put(BOTTOM_COMPLICATION_ID, bottomComplicationDrawable);
+
 
             setActiveComplications(COMPLICATION_IDS);
         }
@@ -394,6 +395,7 @@ public class VaporFace extends CanvasWatchFaceService {
 
             ComplicationDrawable complicationDrawable;
 
+            //noinspection ForLoopReplaceableByForEach
             for (int i = 0; i < COMPLICATION_IDS.length; i++) {
                 complicationDrawable = complicationDrawableSparseArray.get(COMPLICATION_IDS[i]);
 
@@ -524,7 +526,7 @@ public class VaporFace extends CanvasWatchFaceService {
             Rect bounds = new Rect();
             paint.getTextBounds(text, 0, text.length(), bounds);
             int x = (canvas.getWidth() / 2) - (bounds.width() / 2);
-            int y = (canvas.getHeight() / 2) - (bounds.height() / 2) - 32;
+            int y = (canvas.getHeight() / 2) - (bounds.height() / 2);
             canvas.drawText(text, x, y, paint);
         }
 

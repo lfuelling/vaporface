@@ -58,12 +58,21 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
         defaultAddComplicationDrawable = getDrawable(R.drawable.add_complication);
 
         selectedComplicationId = -1;
+        watchFaceComponentName = new ComponentName(getApplicationContext(), VaporFace.class);
 
-        bottomComplicationId =
-                VaporFace.getComplicationId(ComplicationLocation.BOTTOM);
+        initBottomComplication();
 
-        watchFaceComponentName =
-                new ComponentName(getApplicationContext(), VaporFace.class);
+
+        // Initialization of code to retrieve active complication data for the watch face.
+        providerInfoRetriever =
+                new ProviderInfoRetriever(getApplicationContext(), Executors.newCachedThreadPool());
+        providerInfoRetriever.init();
+
+        retrieveInitialComplicationsData();
+    }
+
+    private void initBottomComplication() {
+        bottomComplicationId = VaporFace.getComplicationId(ComplicationLocation.BOTTOM);
 
         // Sets up bottom complication preview.
         bottomComplicationBackground = findViewById(R.id.bottom_complication_background);
@@ -73,13 +82,6 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
         // Sets default as "Add Complication" icon.
         bottomComplication.setImageDrawable(defaultAddComplicationDrawable);
         bottomComplicationBackground.setVisibility(View.INVISIBLE);
-
-        // Initialization of code to retrieve active complication data for the watch face.
-        providerInfoRetriever =
-                new ProviderInfoRetriever(getApplicationContext(), Executors.newCachedThreadPool());
-        providerInfoRetriever.init();
-
-        retrieveInitialComplicationsData();
     }
 
     @Override
@@ -110,9 +112,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
     @Override
     public void onClick(View view) {
         if (view.equals(bottomComplication)) {
-            Log.d(TAG, "Bottom Complication click()");
             launchComplicationHelperActivity(ComplicationLocation.BOTTOM);
-
         }
     }
 
@@ -153,7 +153,6 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
                 bottomComplication.setImageDrawable(defaultAddComplicationDrawable);
                 bottomComplicationBackground.setVisibility(View.INVISIBLE);
             }
-
         }
     }
 
