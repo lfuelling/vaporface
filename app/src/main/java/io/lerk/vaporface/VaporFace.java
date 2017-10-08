@@ -260,6 +260,7 @@ public class VaporFace extends CanvasWatchFaceService {
             if (drawable == null) {
                 return new Bitmap[]{Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.vaporwave_grid)), 320, 320, false)};
             } else {
+                //FIXME this doesn't work:
                 ArrayList<Bitmap> bl = new ArrayList<>();
                 for (int i = 0; i >= drawable.getNumberOfFrames(); i++) {
                     bl.add(Bitmap.createScaledBitmap(drawableToBitmap(drawable.getFrame(i)), 320, 320, false));
