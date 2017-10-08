@@ -31,6 +31,9 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -39,13 +42,18 @@ import android.support.wearable.complications.ComplicationHelperActivity;
 import android.support.wearable.complications.rendering.ComplicationDrawable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.text.format.DateFormat;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.SurfaceHolder;
+import android.view.View;
 import android.view.WindowInsets;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -54,6 +62,9 @@ import java.util.concurrent.TimeUnit;
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
 public class VaporFace extends CanvasWatchFaceService {
+
+    private static int bgaCount = 0;
+    private static Bitmap[] backgroundDrawable;
 
     private static final int BOTTOM_COMPLICATION_ID = 0;
 
@@ -146,7 +157,7 @@ public class VaporFace extends CanvasWatchFaceService {
         Paint textPaint;
         boolean ambient;
         Calendar cal;
-        Bitmap bg;
+
         final BroadcastReceiver timeZoneReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -164,21 +175,16 @@ public class VaporFace extends CanvasWatchFaceService {
         private boolean isRound;
         private Paint ambientTextPaint;
 
+
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
-            float scale = ((float) width) / (float) bg.getWidth();
-            bg = Bitmap.createScaledBitmap(
-                    bg,
-                    (int) (bg.getWidth() * scale),
-                    (int) (bg.getHeight() * scale),
-                    true);
 
             // For most Wear devices, width and height are the same, so we just chose one (width).
             int sizeOfComplication = width / 4;
             int midpointOfScreen = width / 2;
 
-            int horizontalOffset = midpointOfScreen - (sizeOfComplication /2);
+            int horizontalOffset = midpointOfScreen - (sizeOfComplication / 2);
             int verticalOffset = height - (sizeOfComplication + 18);
 
             Rect bottomBounds =
@@ -206,8 +212,6 @@ public class VaporFace extends CanvasWatchFaceService {
 
             Resources resources = VaporFace.this.getResources();
 
-            bg = BitmapFactory.decodeResource(resources, R.drawable.vaporwave_grid);
-
             VAPOR_FONT = Typeface.createFromAsset(getAssets(), "Monomod.ttf");
 
             textPaint = createTextPaint(resources.getColor(R.color.digital_text));
@@ -217,7 +221,53 @@ public class VaporFace extends CanvasWatchFaceService {
 
             initComplications();
 
+            backgroundDrawable = getBackgroundDrawable();
             cal = Calendar.getInstance();
+        }
+
+        private Bitmap[] getBackgroundDrawable() {
+            String currentBackground = getSharedPreferences("vaporface", MODE_PRIVATE).getString("background", String.valueOf(0));
+
+            AnimationDrawable drawable;
+
+            switch (currentBackground) {
+                case "1":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_04_anim);
+                    break;
+                case "2":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_08_anim);
+                    break;
+                case "3":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_10_anim);
+                    break;
+                case "4":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_12_anim);
+                    break;
+                case "5":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_15_anim);
+                    break;
+                case "6":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_16_anim);
+                    break;
+                case "7":
+                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_20_anim);
+                    break;
+                case "0":
+                default:
+                    drawable = null;
+            }
+
+            if (drawable == null) {
+                return new Bitmap[]{Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.vaporwave_grid)), 320, 320, false)};
+            } else {
+                ArrayList<Bitmap> bl = new ArrayList<>();
+                for (int i = 0; i >= drawable.getNumberOfFrames(); i++) {
+                    bl.add(Bitmap.createScaledBitmap(drawableToBitmap(drawable.getFrame(i)), 320, 320, false));
+                }
+                return bl.toArray(new Bitmap[bl.size()]);
+            }
+
+
         }
 
         private void initComplications() {
@@ -352,7 +402,6 @@ public class VaporFace extends CanvasWatchFaceService {
             } else {
                 unregisterReceiver();
             }
-
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
             updateTimer();
@@ -399,13 +448,12 @@ public class VaporFace extends CanvasWatchFaceService {
             for (int i = 0; i < COMPLICATION_IDS.length; i++) {
                 complicationDrawable = complicationDrawableSparseArray.get(COMPLICATION_IDS[i]);
 
-                if(complicationDrawable != null) {
+                if (complicationDrawable != null) {
                     complicationDrawable.setLowBitAmbient(lowBitAmbient);
                     complicationDrawable.setBurnInProtection(burnInProtection);
                 }
             }
         }
-
 
 
         @Override
@@ -432,6 +480,8 @@ public class VaporFace extends CanvasWatchFaceService {
                 }
                 invalidate();
             }
+
+            backgroundDrawable = getBackgroundDrawable();
 
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
@@ -468,19 +518,43 @@ public class VaporFace extends CanvasWatchFaceService {
                 canvas.drawColor(Color.BLACK);
                 drawAesthetic(canvas);
             } else {
-                canvas.drawBitmap(bg, 0F, 0F, null);
+                if(bgaCount >= backgroundDrawable.length) {
+                    bgaCount = 0;
+                }
+                canvas.drawBitmap(backgroundDrawable[bgaCount], 0F, 0F, null);
+                bgaCount++;
             }
 
             // Draw H:MM in ambient mode or H:MM:SS in interactive mode.
             long now = System.currentTimeMillis();
             cal.setTimeInMillis(now);
 
-            @SuppressLint("DefaultLocale") //FIXME evaluate if this is really not important
-                    String text = ambient
-                    ? String.format("%d:%02d", cal.get(Calendar.HOUR),
-                    cal.get(Calendar.MINUTE))
-                    : String.format("%d:%02d:%02d", cal.get(Calendar.HOUR),
-                    cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+            String text = "";
+            if (!DateFormat.is24HourFormat(getApplicationContext())) {
+                Calendar mCalendar = Calendar.getInstance();
+                int hourOfDay = mCalendar.get(Calendar.HOUR_OF_DAY);
+                if (hourOfDay >= 12) {
+                    //TODO: pm
+                } else {
+                    //TODO: am
+                }
+                if (ambient) {
+                    text = String.format(Locale.getDefault(), "%02d:%02d", cal.get(Calendar.HOUR),
+                            cal.get(Calendar.MINUTE));
+                } else {
+                    text = String.format(Locale.getDefault(), "%02d:%02d:%02d", cal.get(Calendar.HOUR),
+                            cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+                }
+            } else {
+                if (ambient) {
+                    text = String.format(Locale.getDefault(), "%02d:%02d", cal.get(Calendar.HOUR),
+                            cal.get(Calendar.MINUTE));
+                } else {
+                    text = String.format(Locale.getDefault(), "%02d:%02d:%02d", cal.get(Calendar.HOUR),
+                            cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
+                }
+            }
+
 
             drawText(canvas, textPaint, text);
 
@@ -561,5 +635,33 @@ public class VaporFace extends CanvasWatchFaceService {
                 mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
             }
         }
+    }
+
+    /**
+     * https://stackoverflow.com/a/10600736/1979736
+     *
+     * @param drawable the drawable
+     * @return a bitmap
+     */
+    public static Bitmap drawableToBitmap(Drawable drawable) {
+        Bitmap bitmap = null;
+
+        if (drawable instanceof BitmapDrawable) {
+            BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
+            if (bitmapDrawable.getBitmap() != null) {
+                return bitmapDrawable.getBitmap();
+            }
+        }
+
+        if (drawable.getIntrinsicWidth() <= 0 || drawable.getIntrinsicHeight() <= 0) {
+            bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // Single color bitmap will be created of 1x1 pixel
+        } else {
+            bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+        }
+
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
     }
 }

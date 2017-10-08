@@ -1,0 +1,28 @@
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_08_anim"
+    android:oneshot="false">
+    <item android:drawable="@drawable/bg_08_01" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_02" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_03" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_04" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_05" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_06" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_07" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_08" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_09" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_10" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_11" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_12" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_13" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_14" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_15" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_16" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_17" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_18" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_19" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_20" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_21" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_22" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_23" android:duration="10" />
+    <item android:drawable="@drawable/bg_08_24" android:duration="10" />
+</animation-list>

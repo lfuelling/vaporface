@@ -3,6 +3,7 @@ package io.lerk.vaporface;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -27,6 +28,9 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
     private static final String TAG = "ConfigActivity";
 
     static final int COMPLICATION_CONFIG_REQUEST_CODE = 1001;
+    private SharedPreferences preferences;
+    private ImageButton bgChangeRight;
+    private ImageButton bgChangeLeft;
 
     public enum ComplicationLocation {
         BOTTOM
@@ -49,6 +53,8 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
     private Drawable defaultAddComplicationDrawable;
 
+    private Integer currentBG = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,7 +74,80 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
                 new ProviderInfoRetriever(getApplicationContext(), Executors.newCachedThreadPool());
         providerInfoRetriever.init();
 
+        preferences = getSharedPreferences("vaporface", MODE_PRIVATE);
+
+        setBackgroundPreview();
+
+        bgChangeRight = findViewById(R.id.bgc_right);
+        bgChangeRight.setOnClickListener(v -> toggleNextBg());
+
+        bgChangeLeft = findViewById(R.id.bgc_left);
+        bgChangeLeft.setOnClickListener(v -> togglePrevBg());
+
         retrieveInitialComplicationsData();
+    }
+
+    private void togglePrevBg() {
+        currentBG--;
+        if(currentBG < 0) {
+            currentBG = 0;
+            bgChangeLeft.setVisibility(View.GONE);
+            bgChangeRight.setVisibility(View.VISIBLE);
+        } else {
+            bgChangeLeft.setVisibility(View.VISIBLE);
+            bgChangeRight.setVisibility(View.VISIBLE);
+        }
+        preferences.edit().putString("background", String.valueOf(currentBG)).apply();
+        setBackgroundPreview();
+    }
+
+    private void toggleNextBg() {
+        currentBG++;
+        if(currentBG > 7) {
+            currentBG = 7;
+            bgChangeRight.setVisibility(View.GONE);
+            bgChangeLeft.setVisibility(View.VISIBLE);
+        } else {
+            bgChangeLeft.setVisibility(View.VISIBLE);
+            bgChangeRight.setVisibility(View.VISIBLE);
+        }
+        preferences.edit().putString("background", String.valueOf(currentBG)).apply();
+        setBackgroundPreview();
+    }
+
+    private void setBackgroundPreview() {
+        String background = preferences.getString("background", String.valueOf(currentBG));
+        currentBG = Integer.parseInt(background);
+
+        View container = findViewById(R.id.config_view);
+        switch (background) {
+            case "1":
+                container.setBackground(getDrawable(R.drawable.bg_04_01));
+                break;
+            case "2":
+                container.setBackground(getDrawable(R.drawable.bg_08_01));
+                break;
+            case "3":
+                container.setBackground(getDrawable(R.drawable.bg_10_01));
+                break;
+            case "4":
+                container.setBackground(getDrawable(R.drawable.bg_12_01));
+                break;
+            case "5":
+                container.setBackground(getDrawable(R.drawable.bg_15_01));
+                break;
+            case "6":
+                container.setBackground(getDrawable(R.drawable.bg_16_01));
+                break;
+            case "7":
+                container.setBackground(getDrawable(R.drawable.bg_20_01));
+                break;
+            case "0":
+            default:
+                container.setBackground(getDrawable(R.drawable.vaporwave_grid));
+                break;
+        }
+
     }
 
     private void initBottomComplication() {

@@ -1,0 +1,23 @@
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bg_04_anim"
+    android:oneshot="false">
+    <item android:drawable="@drawable/bg_04_01" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_02" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_03" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_04" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_05" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_06" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_07" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_08" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_09" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_10" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_11" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_12" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_13" android:duration="10" />
+    <item android:drawable="@drawable/bg_04_14" android:duration="10" />
+</animation-list>
+
+
+
+
+
