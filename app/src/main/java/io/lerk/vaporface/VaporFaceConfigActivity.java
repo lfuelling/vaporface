@@ -31,6 +31,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
     private SharedPreferences preferences;
     private ImageButton bgChangeRight;
     private ImageButton bgChangeLeft;
+    private ImageButton animationToggle;
 
     public enum ComplicationLocation {
         BOTTOM
@@ -78,6 +79,15 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
         setBackgroundPreview();
 
+        animationToggle = findViewById(R.id.animation_toggle);
+        boolean animationsEnabled = preferences.getBoolean("animations_enabled", false);
+        if(animationsEnabled) {
+            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
+        } else {
+            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_outline_blank_white_24dp));
+        }
+        animationToggle.setOnClickListener(v -> toggleAnimationToggle());
+
         bgChangeRight = findViewById(R.id.bgc_right);
         bgChangeRight.setOnClickListener(v -> toggleNextBg());
 
@@ -85,6 +95,17 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
         bgChangeLeft.setOnClickListener(v -> togglePrevBg());
 
         retrieveInitialComplicationsData();
+    }
+
+    private void toggleAnimationToggle() {
+        boolean previousState = preferences.getBoolean("animations_enabled", false);
+        preferences.edit().putBoolean("animations_enabled", !previousState).apply();
+        boolean animationsEnabled = preferences.getBoolean("animations_enabled", false);
+        if(animationsEnabled) {
+            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
+        } else {
+            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_outline_blank_white_24dp));
+        }
     }
 
     private void togglePrevBg() {

@@ -22,6 +22,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -62,7 +63,6 @@ public class VaporFace extends CanvasWatchFaceService {
 
     private static final int BOTTOM_COMPLICATION_ID = 0;
 
-
     public static final int[] COMPLICATION_IDS = {BOTTOM_COMPLICATION_ID};
 
     // Left and right dial supported types.
@@ -87,6 +87,7 @@ public class VaporFace extends CanvasWatchFaceService {
     private static final int MSG_UPDATE_TIME = 0;
     public static boolean updateBackground = false;
     private Typeface VAPOR_FONT;
+    private boolean animationsEnabled;
 
     @Override
     public Engine onCreateEngine() {
@@ -468,11 +469,15 @@ public class VaporFace extends CanvasWatchFaceService {
                 canvas.drawColor(Color.BLACK);
                 drawAesthetic(canvas);
             } else {
-                if (backgroundDrawable.length > 1) {
-                    if (bgaCount >= backgroundDrawable.length) {
-                        bgaCount = 0;
+                if (animationsEnabled) {
+                    if (backgroundDrawable.length > 1) {
+                        if (bgaCount >= backgroundDrawable.length) {
+                            bgaCount = 0;
+                        }
+                        bgaCount++;
                     }
-                    bgaCount++;
+                } else {
+                    bgaCount = 0;
                 }
                 canvas.drawBitmap(backgroundDrawable[bgaCount], 0F, 0F, null);
 
@@ -590,7 +595,9 @@ public class VaporFace extends CanvasWatchFaceService {
         }
 
         private Bitmap[] getBackgroundDrawable() {
-            String currentBackground = getSharedPreferences("vaporface", MODE_PRIVATE).getString("background", String.valueOf(0));
+            SharedPreferences preferences = getSharedPreferences("vaporface", MODE_PRIVATE);
+            String currentBackground = preferences.getString("background", String.valueOf(0));
+            animationsEnabled = preferences.getBoolean("animations_enabled", false);
 
             Bitmap[] drawable;
             int dstWidth = ((surfaceWidth != null)) ? surfaceWidth : 320;
@@ -613,8 +620,7 @@ public class VaporFace extends CanvasWatchFaceService {
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_13)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_14)), dstWidth, dstHeight, false)
                 };
-            }
-            else if ("2".equals(currentBackground)) {
+            } else if ("2".equals(currentBackground)) {
                 drawable = new Bitmap[]{
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_01)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_02)), dstWidth, dstHeight, false),
@@ -641,8 +647,7 @@ public class VaporFace extends CanvasWatchFaceService {
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_23)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_24)), dstWidth, dstHeight, false)
                 };
-            }
-            else if ("3".equals(currentBackground)) {
+            } else if ("3".equals(currentBackground)) {
                 drawable = new Bitmap[]{
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_01)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_02)), dstWidth, dstHeight, false),
@@ -653,8 +658,7 @@ public class VaporFace extends CanvasWatchFaceService {
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_07)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_08)), dstWidth, dstHeight, false)
                 };
-            }
-            else if ("4".equals(currentBackground)) {
+            } else if ("4".equals(currentBackground)) {
                 drawable = new Bitmap[]{
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_01)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_02)), dstWidth, dstHeight, false),
@@ -679,8 +683,7 @@ public class VaporFace extends CanvasWatchFaceService {
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_21)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_22)), dstWidth, dstHeight, false)
                 };
-            }
-            else if ("5".equals(currentBackground)) {
+            } else if ("5".equals(currentBackground)) {
                 drawable = new Bitmap[]{
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_01)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_02)), dstWidth, dstHeight, false),
@@ -704,8 +707,7 @@ public class VaporFace extends CanvasWatchFaceService {
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_20)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_21)), dstWidth, dstHeight, false)
                 };
-            }
-            else if ("6".equals(currentBackground)) {
+            } else if ("6".equals(currentBackground)) {
                 drawable = new Bitmap[]{
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_01)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_02)), dstWidth, dstHeight, false),
@@ -732,8 +734,7 @@ public class VaporFace extends CanvasWatchFaceService {
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_23)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_24)), dstWidth, dstHeight, false)
                 };
-            }
-            else if ("7".equals(currentBackground)) {
+            } else if ("7".equals(currentBackground)) {
                 drawable = new Bitmap[]{
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_01)), dstWidth, dstHeight, false),
                         Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_02)), dstWidth, dstHeight, false),

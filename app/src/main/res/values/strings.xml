@@ -2,5 +2,6 @@
     <string name="app_name">vaporface</string>
     <string name="message">Watch face tapped</string>
     <string name="my_digital_name">Vapor</string>
-    <string name="vapor_settings" translatable="false">🌴⚙️</string>
+    <string name="vapor_settings" translatable="false">🌴⚙</string>
+    <string name="animation_toggle">Animations</string>
 </resources>
