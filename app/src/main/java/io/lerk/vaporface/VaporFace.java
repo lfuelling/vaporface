@@ -16,7 +16,6 @@
 
 package io.lerk.vaporface;
 
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -25,13 +24,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -46,12 +43,9 @@ import android.text.format.DateFormat;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.SurfaceHolder;
-import android.view.View;
 import android.view.WindowInsets;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
@@ -91,6 +85,7 @@ public class VaporFace extends CanvasWatchFaceService {
      * Handler message id for updating the time periodically in interactive mode.
      */
     private static final int MSG_UPDATE_TIME = 0;
+    public static boolean updateBackground = false;
     private Typeface VAPOR_FONT;
 
     @Override
@@ -174,12 +169,15 @@ public class VaporFace extends CanvasWatchFaceService {
         private boolean burnInProtection;
         private boolean isRound;
         private Paint ambientTextPaint;
+        private Integer surfaceWidth = null, surfaceHeight = null;
 
 
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
-
+            surfaceWidth = width;
+            surfaceHeight = height;
+            backgroundDrawable = getBackgroundDrawable();
             // For most Wear devices, width and height are the same, so we just chose one (width).
             int sizeOfComplication = width / 4;
             int midpointOfScreen = width / 2;
@@ -221,54 +219,7 @@ public class VaporFace extends CanvasWatchFaceService {
 
             initComplications();
 
-            backgroundDrawable = getBackgroundDrawable();
             cal = Calendar.getInstance();
-        }
-
-        private Bitmap[] getBackgroundDrawable() {
-            String currentBackground = getSharedPreferences("vaporface", MODE_PRIVATE).getString("background", String.valueOf(0));
-
-            AnimationDrawable drawable;
-
-            switch (currentBackground) {
-                case "1":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_04_anim);
-                    break;
-                case "2":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_08_anim);
-                    break;
-                case "3":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_10_anim);
-                    break;
-                case "4":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_12_anim);
-                    break;
-                case "5":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_15_anim);
-                    break;
-                case "6":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_16_anim);
-                    break;
-                case "7":
-                    drawable = (AnimationDrawable) getDrawable(R.drawable.bg_20_anim);
-                    break;
-                case "0":
-                default:
-                    drawable = null;
-            }
-
-            if (drawable == null) {
-                return new Bitmap[]{Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.vaporwave_grid)), 320, 320, false)};
-            } else {
-                //FIXME this doesn't work:
-                ArrayList<Bitmap> bl = new ArrayList<>();
-                for (int i = 0; i >= drawable.getNumberOfFrames(); i++) {
-                    bl.add(Bitmap.createScaledBitmap(drawableToBitmap(drawable.getFrame(i)), 320, 320, false));
-                }
-                return bl.toArray(new Bitmap[bl.size()]);
-            }
-
-
         }
 
         private void initComplications() {
@@ -482,8 +433,6 @@ public class VaporFace extends CanvasWatchFaceService {
                 invalidate();
             }
 
-            backgroundDrawable = getBackgroundDrawable();
-
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
             updateTimer();
@@ -519,11 +468,14 @@ public class VaporFace extends CanvasWatchFaceService {
                 canvas.drawColor(Color.BLACK);
                 drawAesthetic(canvas);
             } else {
-                if(bgaCount >= backgroundDrawable.length) {
-                    bgaCount = 0;
+                if (backgroundDrawable.length > 1) {
+                    if (bgaCount >= backgroundDrawable.length) {
+                        bgaCount = 0;
+                    }
+                    bgaCount++;
                 }
                 canvas.drawBitmap(backgroundDrawable[bgaCount], 0F, 0F, null);
-                bgaCount++;
+
             }
 
             // Draw H:MM in ambient mode or H:MM:SS in interactive mode.
@@ -636,6 +588,180 @@ public class VaporFace extends CanvasWatchFaceService {
                 mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
             }
         }
+
+        private Bitmap[] getBackgroundDrawable() {
+            String currentBackground = getSharedPreferences("vaporface", MODE_PRIVATE).getString("background", String.valueOf(0));
+
+            Bitmap[] drawable;
+            int dstWidth = ((surfaceWidth != null)) ? surfaceWidth : 320;
+            int dstHeight = ((surfaceHeight != null)) ? surfaceHeight : 320;
+
+            if ("1".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_08)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_09)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_10)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_11)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_12)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_13)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_14)), dstWidth, dstHeight, false)
+                };
+            }
+            else if ("2".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_08)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_09)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_10)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_11)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_12)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_13)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_14)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_15)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_16)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_17)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_18)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_19)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_20)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_21)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_22)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_23)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_24)), dstWidth, dstHeight, false)
+                };
+            }
+            else if ("3".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_08)), dstWidth, dstHeight, false)
+                };
+            }
+            else if ("4".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_08)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_09)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_10)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_11)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_12)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_13)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_14)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_15)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_16)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_17)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_18)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_19)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_20)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_21)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_22)), dstWidth, dstHeight, false)
+                };
+            }
+            else if ("5".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_08)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_09)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_10)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_11)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_12)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_13)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_14)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_15)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_16)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_17)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_18)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_19)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_20)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_21)), dstWidth, dstHeight, false)
+                };
+            }
+            else if ("6".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_08)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_09)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_10)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_11)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_12)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_13)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_14)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_15)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_16)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_17)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_18)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_19)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_20)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_21)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_22)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_23)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_24)), dstWidth, dstHeight, false)
+                };
+            }
+            else if ("7".equals(currentBackground)) {
+                drawable = new Bitmap[]{
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_01)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_02)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_03)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_04)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_05)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_06)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_07)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_08)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_09)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_10)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_11)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_12)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_13)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_14)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_15)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_16)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_17)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_18)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_19)), dstWidth, dstHeight, false),
+                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_20)), dstWidth, dstHeight, false)
+                };
+            } else {
+                return new Bitmap[]{Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.vaporwave_grid)), dstWidth, dstHeight, false)};
+            }
+
+            return drawable;
+        }
     }
 
     /**
@@ -665,4 +791,6 @@ public class VaporFace extends CanvasWatchFaceService {
         drawable.draw(canvas);
         return bitmap;
     }
+
+
 }

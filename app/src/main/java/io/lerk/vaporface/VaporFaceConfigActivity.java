@@ -89,7 +89,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
     private void togglePrevBg() {
         currentBG--;
-        if(currentBG < 0) {
+        if (currentBG < 0) {
             currentBG = 0;
             bgChangeLeft.setVisibility(View.GONE);
             bgChangeRight.setVisibility(View.VISIBLE);
@@ -103,7 +103,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
     private void toggleNextBg() {
         currentBG++;
-        if(currentBG > 7) {
+        if (currentBG > 7) {
             currentBG = 7;
             bgChangeRight.setVisibility(View.GONE);
             bgChangeLeft.setVisibility(View.VISIBLE);
@@ -111,13 +111,13 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
             bgChangeLeft.setVisibility(View.VISIBLE);
             bgChangeRight.setVisibility(View.VISIBLE);
         }
+
         preferences.edit().putString("background", String.valueOf(currentBG)).apply();
         setBackgroundPreview();
     }
 
     private void setBackgroundPreview() {
         String background = preferences.getString("background", String.valueOf(currentBG));
-        currentBG = Integer.parseInt(background);
 
         View container = findViewById(R.id.config_view);
         switch (background) {
@@ -147,7 +147,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
                 container.setBackground(getDrawable(R.drawable.vaporwave_grid));
                 break;
         }
-
+        currentBG = Integer.parseInt(background);
     }
 
     private void initBottomComplication() {
@@ -166,7 +166,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
+        VaporFace.updateBackground = true;
         providerInfoRetriever.release();
     }
 
