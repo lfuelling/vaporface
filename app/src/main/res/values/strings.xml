@@ -4,4 +4,11 @@
     <string name="my_digital_name">Vapor</string>
     <string name="vapor_settings" translatable="false">🌴⚙</string>
     <string name="animation_toggle">Animations</string>
+    <string name="companion_config_text">Watchface Background Settings</string>
+    <string name="companion_config_animations">Enable Animations</string>
+    <string name="companion_config_animations_description">Animations can use more battery.</string>
+    <string name="title_no_device_connected">Unable to reach device...</string>
+    <string name="okay">Okay</string>
+    <string name="companion_config_preview_description">Background Preview</string>
+    <string name="companion_connection_failed">Connection Failed</string>
 </resources>

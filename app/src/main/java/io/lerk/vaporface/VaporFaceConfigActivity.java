@@ -23,7 +23,6 @@ import java.util.concurrent.Executors;
  *
  * @author Lukas Fülling (lukas@k40s.net)
  */
-
 public class VaporFaceConfigActivity extends Activity implements View.OnClickListener {
     private static final String TAG = "ConfigActivity";
 
@@ -110,7 +109,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
     private void togglePrevBg() {
         currentBG--;
-        if (currentBG < 0) {
+        if (currentBG <= 0) {
             currentBG = 0;
             bgChangeLeft.setVisibility(View.GONE);
             bgChangeRight.setVisibility(View.VISIBLE);
@@ -124,7 +123,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
     private void toggleNextBg() {
         currentBG++;
-        if (currentBG > 7) {
+        if (currentBG >= 7) {
             currentBG = 7;
             bgChangeRight.setVisibility(View.GONE);
             bgChangeLeft.setVisibility(View.VISIBLE);

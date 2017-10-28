@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 The Android Open Source Project (Only boilerplate code)
+ * Copyright (C) 2017 Lukas Fülling (Remaining code)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +18,6 @@
 package io.lerk.vaporface;
 
 import android.app.PendingIntent;
-import android.app.job.JobScheduler;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -31,11 +31,10 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.Nullable;
 import android.support.wearable.complications.ComplicationData;
 import android.support.wearable.complications.ComplicationHelperActivity;
 import android.support.wearable.complications.rendering.ComplicationDrawable;
@@ -47,26 +46,74 @@ import android.util.SparseArray;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.DataEvent;
+import com.google.android.gms.wearable.DataItem;
+import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.Wearable;
+
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
+/*
+  __     __                                          ______
+ /  |   /  |                                        /      \
+ ## |   ## | ______    ______    ______    ______  /######  |______    _______   ______
+ ## |   ## |/      \  /      \  /      \  /      \ ## |_ ##//      \  /       | /      \
+ ##  \ /##/ ######  |/######  |/######  |/######  |##   |   ######  |/#######/ /######  |
+  ##  /##/  /    ## |## |  ## |## |  ## |## |  ##/ ####/    /    ## |## |      ##    ## |
+   ## ##/  /####### |## |__## |## \__## |## |      ## |    /####### |## \_____ ########/
+    ###/   ##    ## |##    ##/ ##    ##/ ## |      ## |    ##    ## |##       |##       |
+     #/     #######/ #######/   ######/  ##/       ##/      #######/  #######/  #######/
+                     ## |
+                     ## |
+                     ##/
+ */
+
 /**
- * Digital watch face with seconds. In ambient mode, the seconds aren't displayed. On devices with
- * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
+ * Digital vaporwave watch face with seconds.
+ * In ambient mode, the seconds aren't displayed.
+ * On devices with low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
+ *
+ * @author Lukas Fülling (lukas@k40s.net)
  */
 public class VaporFace extends CanvasWatchFaceService {
 
+    /**
+     * Background animation step count.
+     * This is actually needed and incremented in {@link Engine#onDraw(Canvas, Rect)}.
+     */
     private static int bgaCount = 0;
+
+    /**
+     * The background to use.
+     *
+     * @see BackgroundStore
+     */
     private static Bitmap[] backgroundDrawable;
 
+    /**
+     * The only available complication.
+     */
     private static final int BOTTOM_COMPLICATION_ID = 0;
 
+    /**
+     * The ids of all available complications.
+     */
     public static final int[] COMPLICATION_IDS = {BOTTOM_COMPLICATION_ID};
 
-    // Left and right dial supported types.
+    /**
+     * Supported complication types.
+     *
+     * @see ComplicationData#TYPE_RANGED_VALUE
+     * @see ComplicationData#TYPE_ICON
+     * @see ComplicationData#TYPE_SHORT_TEXT
+     * @see ComplicationData#TYPE_SMALL_IMAGE
+     */
     public static final int[][] COMPLICATION_SUPPORTED_TYPES = {
             {
                     ComplicationData.TYPE_RANGED_VALUE,
@@ -86,25 +133,50 @@ public class VaporFace extends CanvasWatchFaceService {
      * Handler message id for updating the time periodically in interactive mode.
      */
     private static final int MSG_UPDATE_TIME = 0;
-    public static boolean updateBackground = false;
-    private Typeface VAPOR_FONT;
-    private boolean animationsEnabled;
 
+    /**
+     * If true, the {@link #backgroundDrawable} will be polled again.
+     */
+    public static boolean updateBackground = false;
+
+    /**
+     * The {@link Typeface} to use.
+     */
+    private Typeface VAPOR_FONT;
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Engine onCreateEngine() {
         return new Engine();
     }
 
+    /**
+     * @see android.os.Handler
+     */
     private static class EngineHandler extends Handler {
-        private final WeakReference<VaporFace.Engine> mWeakReference;
 
-        public EngineHandler(VaporFace.Engine reference) {
-            mWeakReference = new WeakReference<>(reference);
+        /**
+         * @see WeakReference
+         */
+        private final WeakReference<VaporFace.Engine> weakReference;
+
+        /**
+         * Constructor.
+         *
+         * @param reference the reference.
+         */
+        EngineHandler(VaporFace.Engine reference) {
+            weakReference = new WeakReference<>(reference);
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void handleMessage(Message msg) {
-            VaporFace.Engine engine = mWeakReference.get();
+            VaporFace.Engine engine = weakReference.get();
             if (engine != null) {
                 switch (msg.what) {
                     case MSG_UPDATE_TIME:
@@ -115,6 +187,12 @@ public class VaporFace extends CanvasWatchFaceService {
         }
     }
 
+    /**
+     * Get the id belonging to a {@link VaporFaceConfigActivity.ComplicationLocation}.
+     *
+     * @param complicationLocation the {@link VaporFaceConfigActivity.ComplicationLocation}
+     * @return the id of the complication.
+     */
     static int getComplicationId(
             VaporFaceConfigActivity.ComplicationLocation complicationLocation) {
         // Add any other supported locations here you would like to support. In our case, we are
@@ -127,10 +205,21 @@ public class VaporFace extends CanvasWatchFaceService {
         }
     }
 
+    /**
+     * Getter for {@link #COMPLICATION_IDS}
+     *
+     * @return {@link #COMPLICATION_IDS}
+     */
     static int[] getComplicationIds() {
         return COMPLICATION_IDS;
     }
 
+    /**
+     * See return.
+     *
+     * @param complicationLocation the {@link VaporFaceConfigActivity.ComplicationLocation}
+     * @return the supported complication types.
+     */
     static int[] getSupportedComplicationTypes(
             VaporFaceConfigActivity.ComplicationLocation complicationLocation) {
         // Add any other supported locations here.
@@ -142,7 +231,11 @@ public class VaporFace extends CanvasWatchFaceService {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     private class Engine extends CanvasWatchFaceService.Engine {
+
         private final String TAG = Engine.class.getCanonicalName();
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
@@ -173,13 +266,128 @@ public class VaporFace extends CanvasWatchFaceService {
         private Paint ambientTextPaint;
         private Integer surfaceWidth = null, surfaceHeight = null;
 
+        GoogleApiClient googleApiClient = new GoogleApiClient.Builder(VaporFace.this)
+                .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                    /**
+                     * {@inheritDoc}
+                     */
+                    @Override
+                    public void onConnected(@Nullable Bundle bundle) {
+                        if (Log.isLoggable(TAG, Log.DEBUG)) {
+                            Log.d(TAG, "connected: " + bundle);
+                        }
 
+                        Wearable.DataApi.addListener(googleApiClient, dataEventBuffer -> {
+                            for (DataEvent dataEvent : dataEventBuffer) {
+                                if (dataEvent.getType() != DataEvent.TYPE_CHANGED) {
+                                    continue;
+                                }
+
+                                DataItem dataItem = dataEvent.getDataItem();
+                                if (!dataItem.getUri().getPath().equals(VaporUtils.PATH_WITH_FEATURE)) {
+                                    continue;
+                                }
+
+                                DataMapItem dataMapItem = DataMapItem.fromDataItem(dataItem);
+                                DataMap config = dataMapItem.getDataMap();
+                                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                                    Log.d(TAG, "Config DataItem updated:" + config);
+                                }
+                                updateUi(config);
+                            }
+                        });
+
+                        updateConfigData();
+                    }
+
+                    /**
+                     * {@inheritDoc}
+                     */
+                    @Override
+                    public void onConnectionSuspended(int i) {
+                        Log.d(TAG, "connection suspended: " + String.valueOf(i));
+                    }
+                })
+                .addOnConnectionFailedListener(connectionResult -> Log.i(TAG, "Connection to Google API failed."))
+                .addApi(Wearable.API)
+                .build();
+
+        /**
+         * Pulls config data from the cloud.
+         */
+        private void updateConfigData() {
+            VaporUtils.fetchConfigDataMap(googleApiClient,
+                    startupConfig -> {
+                        // If the DataItem hasn't been created yet or some keys are missing,
+                        // use the default values.
+                        setDefaultValuesForMissingConfigKeys(startupConfig);
+                        VaporUtils.putConfigDataItem(googleApiClient, startupConfig);
+                        updateUi(startupConfig);
+                    }
+            );
+        }
+
+        /**
+         * Adds locally stored preferences or default values to the dataMap.
+         *
+         * @param dataMap the dataMap
+         */
+        private void setDefaultValuesForMissingConfigKeys(DataMap dataMap) {
+            SharedPreferences preferences = getSharedPreferences(VaporUtils.PREFERENCES_NAME, MODE_PRIVATE);
+
+            if (!dataMap.containsKey(VaporUtils.KEY_BACKGROUND_IMAGE)) {
+                dataMap.putString(VaporUtils.KEY_BACKGROUND_IMAGE, preferences.getString(VaporUtils.KEY_BACKGROUND_IMAGE, String.valueOf(0)));
+            }
+
+            if (!dataMap.containsKey(VaporUtils.KEY_ENABLE_ANIMATION)) {
+                dataMap.putBoolean(VaporUtils.KEY_ENABLE_ANIMATION, preferences.getBoolean(VaporUtils.KEY_ENABLE_ANIMATION, false));
+            }
+        }
+
+        /**
+         * Updates the ui config.
+         *
+         * @param config the new config.
+         */
+        private void updateUi(DataMap config) {
+            boolean uiUpdated = false;
+
+            if (config != null) {
+                SharedPreferences.Editor prefEdit = getSharedPreferences(VaporUtils.PREFERENCES_NAME, MODE_PRIVATE)
+                        .edit();
+                if (config.containsKey(VaporUtils.KEY_ENABLE_ANIMATION)) {
+                    prefEdit.putBoolean(
+                            VaporUtils.KEY_ENABLE_ANIMATION,
+                            config.getBoolean(VaporUtils.KEY_ENABLE_ANIMATION))
+                            .apply();
+                    uiUpdated = true;
+                }
+
+                if (config.containsKey(VaporUtils.KEY_BACKGROUND_IMAGE)) {
+                    prefEdit.putString(
+                            VaporUtils.KEY_BACKGROUND_IMAGE,
+                            config.getString(VaporUtils.KEY_BACKGROUND_IMAGE))
+                            .apply();
+                    uiUpdated = true;
+                }
+            }
+
+            if (uiUpdated) {
+                updateBackground = true;
+                invalidate();
+            }
+        }
+
+
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
             surfaceWidth = width;
             surfaceHeight = height;
-            backgroundDrawable = getBackgroundDrawable();
+            backgroundDrawable = BackgroundStore.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
             // For most Wear devices, width and height are the same, so we just chose one (width).
             int sizeOfComplication = width / 4;
             int midpointOfScreen = width / 2;
@@ -199,7 +407,11 @@ public class VaporFace extends CanvasWatchFaceService {
 
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
+        @SuppressWarnings("deprecation")
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
 
@@ -212,6 +424,7 @@ public class VaporFace extends CanvasWatchFaceService {
 
             Resources resources = VaporFace.this.getResources();
 
+            //noinspection SpellCheckingInspection
             VAPOR_FONT = Typeface.createFromAsset(getAssets(), "Monomod.ttf");
 
             textPaint = createTextPaint(resources.getColor(R.color.digital_text));
@@ -222,8 +435,15 @@ public class VaporFace extends CanvasWatchFaceService {
             initComplications();
 
             cal = Calendar.getInstance();
+
+            DataMap dummyMap = new DataMap();
+            setDefaultValuesForMissingConfigKeys(dummyMap);
+            updateUi(dummyMap);
         }
 
+        /**
+         * Initializes the complications.
+         */
         private void initComplications() {
             complicationDataSparseArray = new SparseArray<>(COMPLICATION_IDS.length);
 
@@ -233,6 +453,7 @@ public class VaporFace extends CanvasWatchFaceService {
             complicationPaint.setTypeface(VAPOR_FONT);
 
             ComplicationDrawable bottomComplicationDrawable = (ComplicationDrawable) getDrawable(R.drawable.custom_complication_styles);
+            //noinspection ConstantConditions
             bottomComplicationDrawable.setContext(getApplicationContext());
 
 
@@ -243,6 +464,9 @@ public class VaporFace extends CanvasWatchFaceService {
             setActiveComplications(COMPLICATION_IDS);
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void onComplicationDataUpdate(int complicationId, ComplicationData complicationData) {
             // Adds/updates active complication data in the array.
@@ -257,9 +481,14 @@ public class VaporFace extends CanvasWatchFaceService {
         }
 
 
-        /*
-         * Determines if tap inside a complication area or returns -1.
+        /**
+         * Determines if tap inside a complication area or returns <pre>-1</pre>.
+         *
+         * @param x x coordinates
+         * @param y x coordinates
+         * @return the id of the tapped complication or <pre>-1</pre>.
          */
+        @SuppressWarnings("ForLoopReplaceableByForEach")
         private int getTappedComplicationId(int x, int y) {
 
             int complicationId;
@@ -292,7 +521,11 @@ public class VaporFace extends CanvasWatchFaceService {
             return -1;
         }
 
-        // Fires PendingIntent associated with complication (if it has one).
+        /**
+         * Fires PendingIntent associated with complication (if it has one).
+         *
+         * @param complicationId the complication id.
+         */
         private void onComplicationTap(int complicationId) {
             Log.d(TAG, "onComplicationTap()");
 
@@ -328,12 +561,21 @@ public class VaporFace extends CanvasWatchFaceService {
             }
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void onDestroy() {
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME);
             super.onDestroy();
         }
 
+        /**
+         * Generates a {@link android.text.TextPaint} for the watchface.
+         *
+         * @param textColor the text color to use
+         * @return the finished {@link android.text.TextPaint}
+         */
         private Paint createTextPaint(int textColor) {
             Paint paint = new Paint();
             paint.setColor(textColor);
@@ -343,6 +585,9 @@ public class VaporFace extends CanvasWatchFaceService {
             return paint;
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
@@ -361,6 +606,9 @@ public class VaporFace extends CanvasWatchFaceService {
             updateTimer();
         }
 
+        /**
+         * Registers the TimeZoneReceiver.
+         */
         private void registerReceiver() {
             if (mRegisteredTimeZoneReceiver) {
                 return;
@@ -370,6 +618,9 @@ public class VaporFace extends CanvasWatchFaceService {
             VaporFace.this.registerReceiver(timeZoneReceiver, filter);
         }
 
+        /**
+         * Unregisters the TimeZoneReceiver.
+         */
         private void unregisterReceiver() {
             if (!mRegisteredTimeZoneReceiver) {
                 return;
@@ -378,6 +629,9 @@ public class VaporFace extends CanvasWatchFaceService {
             VaporFace.this.unregisterReceiver(timeZoneReceiver);
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void onApplyWindowInsets(WindowInsets insets) {
             super.onApplyWindowInsets(insets);
@@ -390,6 +644,9 @@ public class VaporFace extends CanvasWatchFaceService {
             textPaint.setTextSize(textSize);
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
         public void onPropertiesChanged(Bundle properties) {
             super.onPropertiesChanged(properties);
@@ -410,13 +667,22 @@ public class VaporFace extends CanvasWatchFaceService {
         }
 
 
+        /**
+         * Tick, Tack, Tick, Tack...
+         *
+         * @see android.support.wearable.watchface.CanvasWatchFaceService.Engine#invalidate
+         */
         @Override
         public void onTimeTick() {
             super.onTimeTick();
             invalidate();
         }
 
+        /**
+         * {@inheritDoc}
+         */
         @Override
+        @SuppressWarnings("ForLoopReplaceableByForEach")
         public void onAmbientModeChanged(boolean inAmbientMode) {
             super.onAmbientModeChanged(inAmbientMode);
             if (ambient != inAmbientMode) {
@@ -443,6 +709,14 @@ public class VaporFace extends CanvasWatchFaceService {
         /**
          * Captures tap event (and tap type) and toggles the background color if the user finishes
          * a tap.
+         *
+         * @param tapType   see the 'see'
+         * @param x         x coordinates
+         * @param y         y coordinates
+         * @param eventTime time of the event
+         * @see android.support.wearable.watchface.WatchFaceService#TAP_TYPE_TOUCH
+         * @see android.support.wearable.watchface.WatchFaceService#TAP_TYPE_TAP
+         * @see android.support.wearable.watchface.WatchFaceService#TAP_TYPE_TOUCH_CANCEL
          */
         @Override
         public void onTapCommand(int tapType, int x, int y, long eventTime) {
@@ -463,6 +737,13 @@ public class VaporFace extends CanvasWatchFaceService {
             invalidate();
         }
 
+        /**
+         * Draws the whole thing.
+         *
+         * @param canvas the canvas on which to draw
+         * @param bounds bounds of the screen i guess... I don't need to call this manually so I don't really care.
+         * @see android.support.wearable.watchface.CanvasWatchFaceService.Engine#onDraw(Canvas, Rect)
+         */
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
             // Draw the background.
@@ -470,36 +751,35 @@ public class VaporFace extends CanvasWatchFaceService {
                 canvas.drawColor(Color.BLACK);
                 drawAesthetic(canvas);
             } else {
-                if(updateBackground) {
-                    backgroundDrawable = getBackgroundDrawable();
+                if (updateBackground) {
+                    backgroundDrawable = BackgroundStore.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
+                    updateBackground = false;
                 }
-                if (animationsEnabled && backgroundDrawable.length > 1) {
-
+                if (backgroundDrawable.length > 1) {
                     if (bgaCount >= backgroundDrawable.length) {
                         bgaCount = 0;
                     }
                     canvas.drawBitmap(backgroundDrawable[bgaCount], 0F, 0F, null);
                     bgaCount++;
-
                 } else {
                     canvas.drawBitmap(backgroundDrawable[0], 0F, 0F, null);
                 }
-
             }
 
-            // Draw H:MM in ambient mode or H:MM:SS in interactive mode.
             long now = System.currentTimeMillis();
             cal.setTimeInMillis(now);
+            drawText(canvas, textPaint, getFormattedTimeString());
+            drawComplications(canvas, now);
+        }
 
-            String text = "";
+        /**
+         * See return.
+         *
+         * @return Returns the formatted time string. eg: 00:00 in ambient mode and 00:00:00 in !ambient mode.
+         */
+        private String getFormattedTimeString() {
+            String text;
             if (!DateFormat.is24HourFormat(getApplicationContext())) {
-                Calendar mCalendar = Calendar.getInstance();
-                int hourOfDay = mCalendar.get(Calendar.HOUR_OF_DAY);
-                if (hourOfDay >= 12) {
-                    //TODO: pm
-                } else {
-                    //TODO: am
-                }
                 if (ambient) {
                     text = String.format(Locale.getDefault(), "%02d:%02d", cal.get(Calendar.HOUR),
                             cal.get(Calendar.MINUTE));
@@ -516,28 +796,29 @@ public class VaporFace extends CanvasWatchFaceService {
                             cal.get(Calendar.MINUTE), cal.get(Calendar.SECOND));
                 }
             }
-
-
-            drawText(canvas, textPaint, text);
-
-            drawComplications(canvas, now);
+            return text;
         }
 
+        /**
+         * Draws the complications.
+         *
+         * @param canvas            the canvas
+         * @param currentTimeMillis the current time in MILLISECONDS!
+         */
+        @SuppressWarnings("ForLoopReplaceableByForEach")
         private void drawComplications(Canvas canvas, long currentTimeMillis) {
-            int complicationId;
             ComplicationDrawable complicationDrawable;
 
             for (int i = 0; i < COMPLICATION_IDS.length; i++) {
-                complicationId = COMPLICATION_IDS[i];
-                complicationDrawable = complicationDrawableSparseArray.get(complicationId);
+                complicationDrawable = complicationDrawableSparseArray.get(COMPLICATION_IDS[i]);
                 complicationDrawable.draw(canvas, currentTimeMillis);
             }
         }
 
         /**
-         * Text that gets drawn in ambient mode
+         * Text that gets drawn in ambient mode.
          *
-         * @param canvas
+         * @param canvas the canvas
          */
         private void drawAesthetic(Canvas canvas) {
             canvas.save();
@@ -554,11 +835,11 @@ public class VaporFace extends CanvasWatchFaceService {
         /**
          * From: https://stackoverflow.com/a/20900551/1979736
          *
-         * @param canvas
-         * @param paint
-         * @param text
+         * @param canvas the canvas
+         * @param paint  the paint
+         * @param text   the text
          */
-        public void drawText(Canvas canvas, Paint paint, String text) {
+        void drawText(Canvas canvas, Paint paint, String text) {
             Rect bounds = new Rect();
             paint.getTextBounds(text, 0, text.length(), bounds);
             int x = (canvas.getWidth() / 2) - (bounds.width() / 2);
@@ -598,203 +879,7 @@ public class VaporFace extends CanvasWatchFaceService {
             }
         }
 
-        private Bitmap[] getBackgroundDrawable() {
-            SharedPreferences preferences = getSharedPreferences("vaporface", MODE_PRIVATE);
-            String currentBackground = preferences.getString("background", String.valueOf(0));
-            animationsEnabled = preferences.getBoolean("animations_enabled", false);
 
-            Bitmap[] drawable;
-            int dstWidth = ((surfaceWidth != null)) ? surfaceWidth : 320;
-            int dstHeight = ((surfaceHeight != null)) ? surfaceHeight : 320;
-
-            if ("1".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_08)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_09)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_10)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_11)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_12)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_13)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_04_14)), dstWidth, dstHeight, false) */
-                };
-            } else if ("2".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_08)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_09)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_10)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_11)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_12)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_13)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_14)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_15)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_16)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_17)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_18)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_19)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_20)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_21)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_22)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_23)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_08_24)), dstWidth, dstHeight, false) */
-                };
-            } else if ("3".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_10_08)), dstWidth, dstHeight, false) */
-                };
-            } else if ("4".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_08)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_09)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_10)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_11)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_12)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_13)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_14)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_15)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_16)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_17)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_18)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_19)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_20)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_21)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_12_22)), dstWidth, dstHeight, false) */
-                };
-            } else if ("5".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_08)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_09)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_10)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_11)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_12)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_13)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_14)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_15)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_16)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_17)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_18)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_19)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_20)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_15_21)), dstWidth, dstHeight, false) */
-                };
-            } else if ("6".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_08)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_09)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_10)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_11)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_12)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_13)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_14)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_15)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_16)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_17)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_18)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_19)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_20)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_21)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_22)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_23)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_16_24)), dstWidth, dstHeight, false) */
-                };
-            } else if ("7".equals(currentBackground)) {
-                drawable = new Bitmap[]{
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_01)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_02)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_03)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_04)), dstWidth, dstHeight, false)  /*
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_05)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_06)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_07)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_08)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_09)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_10)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_11)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_12)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_13)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_14)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_15)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_16)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_17)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_18)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_19)), dstWidth, dstHeight, false),
-                        Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.bg_20_20)), dstWidth, dstHeight, false) */
-                };
-            } else {
-                return new Bitmap[]{Bitmap.createScaledBitmap(drawableToBitmap(getDrawable(R.drawable.vaporwave_grid)), dstWidth, dstHeight, false)};
-            }
-
-            return drawable;
-        }
-    }
-
-    /**
-     * https://stackoverflow.com/a/10600736/1979736
-     *
-     * @param drawable the drawable
-     * @return a bitmap
-     */
-    public static Bitmap drawableToBitmap(Drawable drawable) {
-        Bitmap bitmap = null;
-
-        if (drawable instanceof BitmapDrawable) {
-            BitmapDrawable bitmapDrawable = (BitmapDrawable) drawable;
-            if (bitmapDrawable.getBitmap() != null) {
-                return bitmapDrawable.getBitmap();
-            }
-        }
-
-        if (drawable.getIntrinsicWidth() <= 0 || drawable.getIntrinsicHeight() <= 0) {
-            bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // Single color bitmap will be created of 1x1 pixel
-        } else {
-            bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-        }
-
-        Canvas canvas = new Canvas(bitmap);
-        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-        drawable.draw(canvas);
-        return bitmap;
     }
 
 
