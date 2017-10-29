@@ -1,0 +1,49 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 26
+
+
+
+    defaultConfig {
+        minSdkVersion 23
+        targetSdkVersion 26
+        versionCode 10
+        versionName "2.0"
+
+        multiDexEnabled true
+        android.compileOptions.sourceCompatibility 1.8
+        android.compileOptions.targetCompatibility 1.8
+        dexOptions {
+            javaMaxHeapSize "4g"
+        }
+
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        targetCompatibility 1.8
+        sourceCompatibility 1.8
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation 'com.google.android.support:wearable:2.1.0'
+    implementation 'com.google.android.gms:play-services-wearable:11.4.2'
+    compileOnly 'com.google.android.wearable:wearable:2.1.0'
+
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+}
