@@ -6,7 +6,9 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.support.annotation.Nullable;
+
+import androidx.annotation.Nullable;
+
 import android.support.wearable.complications.ComplicationHelperActivity;
 import android.support.wearable.complications.ComplicationProviderInfo;
 import android.support.wearable.complications.ProviderChooserIntent;
@@ -80,7 +82,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
 
         animationToggle = findViewById(R.id.animation_toggle);
         boolean animationsEnabled = preferences.getBoolean("animations_enabled", false);
-        if(animationsEnabled) {
+        if (animationsEnabled) {
             animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
         } else {
             animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_outline_blank_white_24dp));
@@ -100,7 +102,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
         boolean previousState = preferences.getBoolean("animations_enabled", false);
         preferences.edit().putBoolean("animations_enabled", !previousState).apply();
         boolean animationsEnabled = preferences.getBoolean("animations_enabled", false);
-        if(animationsEnabled) {
+        if (animationsEnabled) {
             animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
         } else {
             animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_outline_blank_white_24dp));

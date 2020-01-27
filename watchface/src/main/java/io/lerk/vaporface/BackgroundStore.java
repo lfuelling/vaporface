@@ -30,6 +30,7 @@ class BackgroundStore {
         SharedPreferences preferences = context.getSharedPreferences(VaporUtils.PREFERENCES_NAME, MODE_PRIVATE);
         String currentBackground = preferences.getString(VaporUtils.KEY_BACKGROUND_IMAGE, String.valueOf(0));
         Boolean animationsEnabled = preferences.getBoolean(VaporUtils.KEY_ENABLE_ANIMATION, false);
+        Boolean animationsFull = preferences.getBoolean(VaporUtils.KEY_ENABLE_FULL_ANIMATION, false);
 
         Bitmap[] drawable;
         int dstWidth = ((surfaceWidth != null)) ? surfaceWidth : 320;

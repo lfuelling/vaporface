@@ -34,7 +34,9 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.support.annotation.Nullable;
+
+import androidx.annotation.Nullable;
+
 import android.support.wearable.complications.ComplicationData;
 import android.support.wearable.complications.ComplicationHelperActivity;
 import android.support.wearable.complications.rendering.ComplicationDrawable;
@@ -286,7 +288,9 @@ public class VaporFace extends CanvasWatchFaceService {
                                 }
 
                                 DataItem dataItem = dataEvent.getDataItem();
-                                if (!dataItem.getUri().getPath().equals(VaporUtils.PATH_WITH_FEATURE)) {
+                                if (dataItem.getUri() == null ||
+                                        dataItem.getUri().getPath() == null ||
+                                        !dataItem.getUri().getPath().equals(VaporUtils.PATH_WITH_FEATURE)) {
                                     continue;
                                 }
 
@@ -344,6 +348,13 @@ public class VaporFace extends CanvasWatchFaceService {
                     prefEdit.putBoolean(
                             VaporUtils.KEY_ENABLE_ANIMATION,
                             config.getBoolean(VaporUtils.KEY_ENABLE_ANIMATION))
+                            .apply();
+                    uiUpdated = true;
+                }
+                if (config.containsKey(VaporUtils.KEY_ENABLE_FULL_ANIMATION)) {
+                    prefEdit.putBoolean(
+                            VaporUtils.KEY_ENABLE_FULL_ANIMATION,
+                            config.getBoolean(VaporUtils.KEY_ENABLE_FULL_ANIMATION))
                             .apply();
                     uiUpdated = true;
                 }

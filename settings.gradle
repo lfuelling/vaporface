@@ -1,1 +1,1 @@
-include ':watchface', ':vaporconf', ':vaporutils'
+include ':watchface', ':vaporutils'

@@ -8,3 +8,4 @@ watchface/release
 build
 /captures
 .externalNativeBuild
+google-services.json

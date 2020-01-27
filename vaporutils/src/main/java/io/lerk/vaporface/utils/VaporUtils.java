@@ -4,7 +4,7 @@ package io.lerk.vaporface.utils;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -25,6 +25,7 @@ public final class VaporUtils {
     public static final String PATH_WITH_FEATURE = "/watch_face_config/VaporFace";
     public static final String KEY_BACKGROUND_IMAGE = "background";
     public static final String KEY_ENABLE_ANIMATION = "animations_enabled";
+    public static final String KEY_ENABLE_FULL_ANIMATION = "full_animations_enabled";
     public static final String PREFERENCES_NAME = "vaporface";
 
     /**
@@ -76,6 +77,10 @@ public final class VaporUtils {
 
         if (!dataMap.containsKey(VaporUtils.KEY_ENABLE_ANIMATION)) {
             dataMap.putBoolean(VaporUtils.KEY_ENABLE_ANIMATION, preferences.getBoolean(VaporUtils.KEY_ENABLE_ANIMATION, false));
+        }
+
+        if (!dataMap.containsKey(VaporUtils.KEY_ENABLE_FULL_ANIMATION)) {
+            dataMap.putBoolean(VaporUtils.KEY_ENABLE_FULL_ANIMATION, preferences.getBoolean(VaporUtils.KEY_ENABLE_FULL_ANIMATION, false));
         }
     }
 
