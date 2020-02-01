@@ -20,6 +20,11 @@ import android.widget.ImageView;
 
 import java.util.concurrent.Executors;
 
+import static io.lerk.vaporface.VaporUtils.KEY_BACKGROUND_IMAGE;
+import static io.lerk.vaporface.VaporUtils.KEY_ENABLE_ANIMATION;
+import static io.lerk.vaporface.VaporUtils.KEY_ENABLE_FULL_ANIMATION;
+import static io.lerk.vaporface.VaporUtils.PREFERENCES_NAME;
+
 /**
  * Copied from the codelabs example, modified. So it's Apache2.
  *
@@ -76,17 +81,12 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
                 new ProviderInfoRetriever(getApplicationContext(), Executors.newCachedThreadPool());
         providerInfoRetriever.init();
 
-        preferences = getSharedPreferences("vaporface", MODE_PRIVATE);
+        preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
 
         setBackgroundPreview();
 
         animationToggle = findViewById(R.id.animation_toggle);
-        boolean animationsEnabled = preferences.getBoolean("animations_enabled", false);
-        if (animationsEnabled) {
-            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
-        } else {
-            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_outline_blank_white_24dp));
-        }
+        updateCheckboxState();
         animationToggle.setOnClickListener(v -> toggleAnimationToggle());
 
         bgChangeRight = findViewById(R.id.bgc_right);
@@ -99,11 +99,33 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
     }
 
     private void toggleAnimationToggle() {
-        boolean previousState = preferences.getBoolean("animations_enabled", false);
-        preferences.edit().putBoolean("animations_enabled", !previousState).apply();
-        boolean animationsEnabled = preferences.getBoolean("animations_enabled", false);
+        boolean previousState = preferences.getBoolean(KEY_ENABLE_ANIMATION, false);
+        boolean previousFullState = preferences.getBoolean(KEY_ENABLE_FULL_ANIMATION, false);
+
+        if (previousState) {
+            if (previousFullState) {
+                preferences.edit()
+                        .putBoolean(KEY_ENABLE_FULL_ANIMATION, false)
+                        .putBoolean(KEY_ENABLE_ANIMATION, false).apply();
+            } else {
+                preferences.edit().putBoolean(KEY_ENABLE_FULL_ANIMATION, true).apply();
+            }
+        } else {
+            preferences.edit().putBoolean(KEY_ENABLE_ANIMATION, true).apply();
+        }
+
+        updateCheckboxState();
+    }
+
+    private void updateCheckboxState() {
+        boolean animationsEnabled = preferences.getBoolean(KEY_ENABLE_ANIMATION, false);
+        boolean fullAnimationsEnabled = preferences.getBoolean(KEY_ENABLE_FULL_ANIMATION, false);
         if (animationsEnabled) {
-            animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
+            if (fullAnimationsEnabled) {
+                animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_white_24dp));
+            } else {
+                animationToggle.setImageDrawable(getDrawable(R.drawable.ic_indeterminate_check_box_white_24dp));
+            }
         } else {
             animationToggle.setImageDrawable(getDrawable(R.drawable.ic_check_box_outline_blank_white_24dp));
         }
@@ -119,7 +141,7 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
             bgChangeLeft.setVisibility(View.VISIBLE);
             bgChangeRight.setVisibility(View.VISIBLE);
         }
-        preferences.edit().putString("background", String.valueOf(currentBG)).apply();
+        preferences.edit().putString(KEY_BACKGROUND_IMAGE, String.valueOf(currentBG)).apply();
         setBackgroundPreview();
     }
 
@@ -134,47 +156,43 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
             bgChangeRight.setVisibility(View.VISIBLE);
         }
 
-        preferences.edit().putString("background", String.valueOf(currentBG)).apply();
+        preferences.edit().putString(KEY_BACKGROUND_IMAGE, String.valueOf(currentBG)).apply();
         setBackgroundPreview();
     }
 
     private void setBackgroundPreview() {
-        String background = preferences.getString("background", String.valueOf(currentBG));
+        String background = preferences.getString(KEY_BACKGROUND_IMAGE, String.valueOf(currentBG));
 
         View container = findViewById(R.id.config_view);
-        if (background != null) {
-            switch (background) {
-                case "1":
-                    container.setBackground(getDrawable(R.drawable.bg_04_01));
-                    break;
-                case "2":
-                    container.setBackground(getDrawable(R.drawable.bg_08_01));
-                    break;
-                case "3":
-                    container.setBackground(getDrawable(R.drawable.bg_10_01));
-                    break;
-                case "4":
-                    container.setBackground(getDrawable(R.drawable.bg_12_01));
-                    break;
-                case "5":
-                    container.setBackground(getDrawable(R.drawable.bg_15_01));
-                    break;
-                case "6":
-                    container.setBackground(getDrawable(R.drawable.bg_16_01));
-                    break;
-                case "7":
-                    container.setBackground(getDrawable(R.drawable.bg_20_01));
-                    break;
-                case "0":
-                default:
-                    container.setBackground(getDrawable(R.drawable.vaporwave_grid));
-                    break;
-            }
-            currentBG = Integer.parseInt(background);
-        } else {
-            container.setBackground(getDrawable(R.drawable.vaporwave_grid));
-            currentBG = 0;
+
+        switch (background) {
+            case "1":
+                container.setBackground(getDrawable(R.drawable.bg_04_01));
+                break;
+            case "2":
+                container.setBackground(getDrawable(R.drawable.bg_08_01));
+                break;
+            case "3":
+                container.setBackground(getDrawable(R.drawable.bg_10_01));
+                break;
+            case "4":
+                container.setBackground(getDrawable(R.drawable.bg_12_01));
+                break;
+            case "5":
+                container.setBackground(getDrawable(R.drawable.bg_15_01));
+                break;
+            case "6":
+                container.setBackground(getDrawable(R.drawable.bg_16_01));
+                break;
+            case "7":
+                container.setBackground(getDrawable(R.drawable.bg_20_01));
+                break;
+            case "0":
+            default:
+                container.setBackground(getDrawable(R.drawable.vaporwave_grid));
+                break;
         }
+        currentBG = Integer.parseInt(background);
     }
 
     private void initBottomComplication() {

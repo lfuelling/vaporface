@@ -7,7 +7,7 @@ android {
         applicationId "io.lerk.vaporface"
         minSdkVersion 24
         targetSdkVersion 29
-        versionCode 11
+        versionCode 12
         versionName "2.1"
         multiDexEnabled true
     }

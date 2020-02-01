@@ -86,7 +86,7 @@ public class VaporFace extends CanvasWatchFaceService {
      *
      * @see VaporUtils
      */
-    private static Bitmap[] backgroundDrawable;
+    private static int[] backgroundDrawables;
 
     /**
      * The only available complication.
@@ -127,7 +127,7 @@ public class VaporFace extends CanvasWatchFaceService {
     private static final int MSG_UPDATE_TIME = 0;
 
     /**
-     * If true, the {@link #backgroundDrawable} will be polled again.
+     * If true, the {@link #backgroundDrawables} will be polled again.
      */
     public static boolean updateBackground = false;
 
@@ -264,7 +264,7 @@ public class VaporFace extends CanvasWatchFaceService {
             super.onSurfaceChanged(holder, format, width, height);
             surfaceWidth = width;
             surfaceHeight = height;
-            backgroundDrawable = VaporUtils.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
+            backgroundDrawables = VaporUtils.getBackgroundDrawables(VaporFace.this);
             // For most Wear devices, width and height are the same, so we just chose one (width).
             int sizeOfComplication = width / 4;
             int midpointOfScreen = width / 2;
@@ -627,18 +627,22 @@ public class VaporFace extends CanvasWatchFaceService {
                 canvas.drawColor(Color.BLACK);
                 drawAesthetic(canvas);
             } else {
+                int dstWidth = ((surfaceWidth != null)) ? surfaceWidth : 320;
+                int dstHeight = ((surfaceHeight != null)) ? surfaceHeight : 320;
                 if (updateBackground) {
-                    backgroundDrawable = VaporUtils.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
+                    backgroundDrawables = VaporUtils.getBackgroundDrawables(VaporFace.this);
                     updateBackground = false;
                 }
-                if (backgroundDrawable.length > 1) {
-                    if (bgaCount >= backgroundDrawable.length) {
+                if (backgroundDrawables.length > 1) {
+                    if (bgaCount >= backgroundDrawables.length) {
                         bgaCount = 0;
                     }
-                    canvas.drawBitmap(backgroundDrawable[bgaCount], 0F, 0F, null);
+                    Bitmap bitmap = VaporUtils.generateBitmap(VaporFace.this, dstWidth, dstHeight, backgroundDrawables[bgaCount]);
+                    canvas.drawBitmap(bitmap, 0F, 0F, null);
                     bgaCount++;
                 } else {
-                    canvas.drawBitmap(backgroundDrawable[0], 0F, 0F, null);
+                    Bitmap bitmap = VaporUtils.generateBitmap(VaporFace.this, dstWidth, dstHeight, backgroundDrawables[0]);
+                    canvas.drawBitmap(bitmap, 0F, 0F, null);
                 }
             }
 
