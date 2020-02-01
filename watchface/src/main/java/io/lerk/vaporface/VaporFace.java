@@ -23,7 +23,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -34,8 +33,6 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-
-import androidx.annotation.Nullable;
 
 import android.support.wearable.complications.ComplicationData;
 import android.support.wearable.complications.ComplicationHelperActivity;
@@ -48,20 +45,11 @@ import android.util.SparseArray;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.wearable.DataEvent;
-import com.google.android.gms.wearable.DataItem;
-import com.google.android.gms.wearable.DataMap;
-import com.google.android.gms.wearable.DataMapItem;
-import com.google.android.gms.wearable.Wearable;
-
 import java.lang.ref.WeakReference;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
-
-import io.lerk.vaporface.utils.VaporUtils;
 
 /*
   __     __                                          ______
@@ -96,7 +84,7 @@ public class VaporFace extends CanvasWatchFaceService {
     /**
      * The background to use.
      *
-     * @see BackgroundStore
+     * @see VaporUtils
      */
     private static Bitmap[] backgroundDrawable;
 
@@ -265,115 +253,8 @@ public class VaporFace extends CanvasWatchFaceService {
          * disable anti-aliasing in ambient mode.
          */
         private boolean lowBitAmbient;
-        private boolean burnInProtection;
-        private boolean isRound;
         private Paint ambientTextPaint;
         private Integer surfaceWidth = null, surfaceHeight = null;
-
-        GoogleApiClient googleApiClient = new GoogleApiClient.Builder(VaporFace.this)
-                .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
-                    /**
-                     * {@inheritDoc}
-                     */
-                    @Override
-                    public void onConnected(@Nullable Bundle bundle) {
-                        if (Log.isLoggable(TAG, Log.DEBUG)) {
-                            Log.d(TAG, "connected: " + bundle);
-                        }
-
-                        Wearable.DataApi.addListener(googleApiClient, dataEventBuffer -> {
-                            for (DataEvent dataEvent : dataEventBuffer) {
-                                if (dataEvent.getType() != DataEvent.TYPE_CHANGED) {
-                                    continue;
-                                }
-
-                                DataItem dataItem = dataEvent.getDataItem();
-                                if (dataItem.getUri() == null ||
-                                        dataItem.getUri().getPath() == null ||
-                                        !dataItem.getUri().getPath().equals(VaporUtils.PATH_WITH_FEATURE)) {
-                                    continue;
-                                }
-
-                                DataMapItem dataMapItem = DataMapItem.fromDataItem(dataItem);
-                                DataMap config = dataMapItem.getDataMap();
-                                if (Log.isLoggable(TAG, Log.DEBUG)) {
-                                    Log.d(TAG, "Config DataItem updated:" + config);
-                                }
-                                updateUi(config);
-                            }
-                        });
-
-                        updateConfigData();
-                    }
-
-                    /**
-                     * {@inheritDoc}
-                     */
-                    @Override
-                    public void onConnectionSuspended(int i) {
-                        Log.d(TAG, "connection suspended: " + String.valueOf(i));
-                    }
-                })
-                .addOnConnectionFailedListener(connectionResult -> Log.i(TAG, "Connection to Google API failed."))
-                .addApi(Wearable.API)
-                .build();
-
-        /**
-         * Pulls config data from the cloud.
-         */
-        private void updateConfigData() {
-            VaporUtils.fetchConfigDataMap(googleApiClient,
-                    startupConfig -> {
-                        // If the DataItem hasn't been created yet or some keys are missing,
-                        // use the default values.
-                        VaporUtils.setDefaultValuesForMissingConfigKeys(VaporFace.this, startupConfig);
-                        VaporUtils.putConfigDataItem(googleApiClient, startupConfig);
-                        updateUi(startupConfig);
-                    }
-            );
-        }
-
-        /**
-         * Updates the ui config.
-         *
-         * @param config the new config.
-         */
-        private void updateUi(DataMap config) {
-            boolean uiUpdated = false;
-
-            if (config != null) {
-                SharedPreferences.Editor prefEdit = getSharedPreferences(VaporUtils.PREFERENCES_NAME, MODE_PRIVATE)
-                        .edit();
-                if (config.containsKey(VaporUtils.KEY_ENABLE_ANIMATION)) {
-                    prefEdit.putBoolean(
-                            VaporUtils.KEY_ENABLE_ANIMATION,
-                            config.getBoolean(VaporUtils.KEY_ENABLE_ANIMATION))
-                            .apply();
-                    uiUpdated = true;
-                }
-                if (config.containsKey(VaporUtils.KEY_ENABLE_FULL_ANIMATION)) {
-                    prefEdit.putBoolean(
-                            VaporUtils.KEY_ENABLE_FULL_ANIMATION,
-                            config.getBoolean(VaporUtils.KEY_ENABLE_FULL_ANIMATION))
-                            .apply();
-                    uiUpdated = true;
-                }
-
-                if (config.containsKey(VaporUtils.KEY_BACKGROUND_IMAGE)) {
-                    prefEdit.putString(
-                            VaporUtils.KEY_BACKGROUND_IMAGE,
-                            config.getString(VaporUtils.KEY_BACKGROUND_IMAGE))
-                            .apply();
-                    uiUpdated = true;
-                }
-            }
-
-            if (uiUpdated) {
-                updateBackground = true;
-                invalidate();
-            }
-        }
-
 
         /**
          * {@inheritDoc}
@@ -383,7 +264,7 @@ public class VaporFace extends CanvasWatchFaceService {
             super.onSurfaceChanged(holder, format, width, height);
             surfaceWidth = width;
             surfaceHeight = height;
-            backgroundDrawable = BackgroundStore.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
+            backgroundDrawable = VaporUtils.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
             // For most Wear devices, width and height are the same, so we just chose one (width).
             int sizeOfComplication = width / 4;
             int midpointOfScreen = width / 2;
@@ -432,9 +313,8 @@ public class VaporFace extends CanvasWatchFaceService {
 
             cal = Calendar.getInstance();
 
-            DataMap dummyMap = new DataMap();
-            VaporUtils.setDefaultValuesForMissingConfigKeys(VaporFace.this, dummyMap);
-            updateUi(dummyMap);
+            updateBackground = true;
+            invalidate();
         }
 
         /**
@@ -634,7 +514,7 @@ public class VaporFace extends CanvasWatchFaceService {
 
             // Load resources that have alternate values for round watches.
             Resources resources = VaporFace.this.getResources();
-            isRound = insets.isRound();
+            boolean isRound = insets.isRound();
             float textSize = resources.getDimension(isRound ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
 
             textPaint.setTextSize(textSize);
@@ -647,7 +527,7 @@ public class VaporFace extends CanvasWatchFaceService {
         public void onPropertiesChanged(Bundle properties) {
             super.onPropertiesChanged(properties);
             lowBitAmbient = properties.getBoolean(PROPERTY_LOW_BIT_AMBIENT, false);
-            burnInProtection = properties.getBoolean(PROPERTY_BURN_IN_PROTECTION, false);
+            boolean burnInProtection = properties.getBoolean(PROPERTY_BURN_IN_PROTECTION, false);
 
             ComplicationDrawable complicationDrawable;
 
@@ -748,7 +628,7 @@ public class VaporFace extends CanvasWatchFaceService {
                 drawAesthetic(canvas);
             } else {
                 if (updateBackground) {
-                    backgroundDrawable = BackgroundStore.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
+                    backgroundDrawable = VaporUtils.getBackgroundDrawable(VaporFace.this, surfaceWidth, surfaceHeight);
                     updateBackground = false;
                 }
                 if (backgroundDrawable.length > 1) {

@@ -142,34 +142,39 @@ public class VaporFaceConfigActivity extends Activity implements View.OnClickLis
         String background = preferences.getString("background", String.valueOf(currentBG));
 
         View container = findViewById(R.id.config_view);
-        switch (background) {
-            case "1":
-                container.setBackground(getDrawable(R.drawable.bg_04_01));
-                break;
-            case "2":
-                container.setBackground(getDrawable(R.drawable.bg_08_01));
-                break;
-            case "3":
-                container.setBackground(getDrawable(R.drawable.bg_10_01));
-                break;
-            case "4":
-                container.setBackground(getDrawable(R.drawable.bg_12_01));
-                break;
-            case "5":
-                container.setBackground(getDrawable(R.drawable.bg_15_01));
-                break;
-            case "6":
-                container.setBackground(getDrawable(R.drawable.bg_16_01));
-                break;
-            case "7":
-                container.setBackground(getDrawable(R.drawable.bg_20_01));
-                break;
-            case "0":
-            default:
-                container.setBackground(getDrawable(R.drawable.vaporwave_grid));
-                break;
+        if (background != null) {
+            switch (background) {
+                case "1":
+                    container.setBackground(getDrawable(R.drawable.bg_04_01));
+                    break;
+                case "2":
+                    container.setBackground(getDrawable(R.drawable.bg_08_01));
+                    break;
+                case "3":
+                    container.setBackground(getDrawable(R.drawable.bg_10_01));
+                    break;
+                case "4":
+                    container.setBackground(getDrawable(R.drawable.bg_12_01));
+                    break;
+                case "5":
+                    container.setBackground(getDrawable(R.drawable.bg_15_01));
+                    break;
+                case "6":
+                    container.setBackground(getDrawable(R.drawable.bg_16_01));
+                    break;
+                case "7":
+                    container.setBackground(getDrawable(R.drawable.bg_20_01));
+                    break;
+                case "0":
+                default:
+                    container.setBackground(getDrawable(R.drawable.vaporwave_grid));
+                    break;
+            }
+            currentBG = Integer.parseInt(background);
+        } else {
+            container.setBackground(getDrawable(R.drawable.vaporwave_grid));
+            currentBG = 0;
         }
-        currentBG = Integer.parseInt(background);
     }
 
     private void initBottomComplication() {

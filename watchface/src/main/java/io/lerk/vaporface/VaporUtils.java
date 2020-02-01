@@ -7,8 +7,6 @@ import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
-import io.lerk.vaporface.utils.VaporUtils;
-
 import static android.content.Context.MODE_PRIVATE;
 
 /**
@@ -16,7 +14,12 @@ import static android.content.Context.MODE_PRIVATE;
  *
  * @author Lukas Fülling (lukas@k40s.net)
  */
-class BackgroundStore {
+class VaporUtils {
+
+    private static final String KEY_BACKGROUND_IMAGE = "background";
+    private static final String KEY_ENABLE_ANIMATION = "animations_enabled";
+    private static final String KEY_ENABLE_FULL_ANIMATION = "full_animations_enabled";
+    private static final String PREFERENCES_NAME = "vaporface";
 
     /**
      * Returns the currently configured background.
